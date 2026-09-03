@@ -3,8 +3,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { auditEvents, eventResources, events, type Event, type EventResource } from '@/lib/db/schema';
 import { eventState, type EventState } from '@/lib/domain/event-state';
-
-export type Visibility = 'public' | 'attendee' | 'organizer';
+import { scopesFor, type Visibility } from '@/lib/domain/scopes';
 
 export interface LoadedEvent {
   event: Event;
@@ -35,12 +34,8 @@ export async function listResources(
     .orderBy(asc(eventResources.sort), asc(eventResources.createdAt));
 }
 
-/** Scopes a viewer at the given level may read, widest last. */
-export function scopesFor(level: 'public' | 'attendee' | 'organizer'): Visibility[] {
-  if (level === 'organizer') return ['public', 'attendee', 'organizer'];
-  if (level === 'attendee') return ['public', 'attendee'];
-  return ['public'];
-}
+export { scopesFor };
+export type { Visibility };
 
 export async function recordAudit(entry: {
   eventId?: string | null;
