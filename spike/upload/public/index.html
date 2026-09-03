@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Upload spike</title>
+<style>
+  :root { color-scheme: light dark; --bg:#fbfbfa; --fg:#1b1b19; --mut:#6b6b66; --line:#e3e3df; --ok:#1a7f4b; --bad:#b4261e; --card:#fff; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#17171a; --fg:#ececea; --mut:#9a9a94; --line:#2e2e33; --card:#1f1f23; } }
+  *{box-sizing:border-box}
+  body{margin:0;padding:20px 16px 64px;background:var(--bg);color:var(--fg);
+       font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:640px;margin-inline:auto}
+  h1{font-size:19px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 16px}
+  .env{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mut);
+       border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:16px;word-break:break-word}
+  .pick{display:block;text-align:center;padding:16px;border:1.5px dashed var(--line);border-radius:12px;
+        font-weight:600;cursor:pointer;background:var(--card);margin-bottom:8px}
+  .pick:active{opacity:.7}
+  .row{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px;background:var(--card);display:flex;gap:12px}
+  .thumb{width:64px;height:64px;flex:0 0 64px;border-radius:8px;background:var(--line);object-fit:cover}
+  .body{flex:1;min-width:0}
+  .name{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .status{font-size:13px;color:var(--mut);margin-top:2px}
+  .status.ok{color:var(--ok);font-weight:600}
+  .status.bad{color:var(--bad);font-weight:600}
+  .bar{height:4px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:0;background:var(--fg);transition:width .15s}
+  .stats{font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mut);margin-top:8px;white-space:pre-wrap}
+  .notes{font-size:12px;color:var(--bad);margin-top:6px}
+</style>
+</head>
+<body>
+<h1>Upload spike</h1>
+<p class="sub">Pick a photo the way an attendee would. Watch what happens. The point is the numbers at the bottom of each row — and whether portrait photos come out the right way up.</p>
+<div class="env" id="env">…</div>
+
+<label class="pick">
+  <input type="file" id="file" accept="image/*" multiple hidden>
+  Choose photos
+</label>
+<p class="sub" style="text-align:center;margin:0">Try: a portrait iPhone photo, a big one, and several at once.</p>
+
+<div id="list"></div>
+
+<script>
+const CFG = { maxDim: 2048, quality: 0.82, attempts: 3 };
+
+const listEl = document.getElementById('list');
+const fileEl = document.getElementById('file');
+const envEl  = document.getElementById('env');
+
+(function showEnv(){
+  const c = navigator.connection || {};
+  const bits = [
+    'net: ' + (c.effectiveType || 'unknown') + (c.downlink ? ' ~' + c.downlink + 'Mb/s' : '') + (c.rtt ? ' rtt ' + c.rtt + 'ms' : ''),
+    'createImageBitmap: ' + ('createImageBitmap' in window),
+    'screen: ' + screen.width + 'x' + screen.height + ' @' + (devicePixelRatio || 1) + 'x',
+    'ua: ' + navigator.userAgent
+  ];
+  envEl.textContent = bits.join('\n');
+})();
+
+fileEl.addEventListener('change', () => {
+  for (const f of fileEl.files) enqueue(f);
+  fileEl.value = '';
+});
+
+// Serial queue: decoding several 12MP images at once will OOM the tab on iOS.
+let queue = Promise.resolve();
+function enqueue(file){
+  const row = makeRow(file);
+  queue = queue.then(() => handle(file, row)).catch(err => row.fail(err.message));
+}
+
+function makeRow(file){
+  const el = document.createElement('div');
+  el.className = 'row';
+  el.innerHTML = '<img class="thumb" alt=""><div class="body">'
+    + '<div class="name"></div><div class="status">queued…</div>'
+    + '<div class="bar"><i></i></div><div class="stats"></div><div class="notes"></div></div>';
+  el.querySelector('.name').textContent = file.name + ' · ' + kb(file.size);
+  listEl.prepend(el);
+  const $ = s => el.querySelector(s);
+  return {
+    status: (t, cls) => { const s = $('.status'); s.textContent = t; s.className = 'status' + (cls ? ' ' + cls : ''); },
+    progress: f => { $('.bar>i').style.width = Math.round(f * 100) + '%'; },
+    preview: blob => { $('.thumb').src = URL.createObjectURL(blob); },
+    stats: t => { $('.stats').textContent = t; },
+    note: t => { $('.notes').textContent += (t + '\n'); },
+    fail: m => { const s = $('.status'); s.textContent = 'FAILED — ' + m; s.className = 'status bad'; }
+  };
+}
+
+async function handle(file, row){
+  const started = Date.now();
+  const m = { name: file.name, type: file.type || '(none)', originalBytes: file.size,
+              ua: navigator.userAgent, net: (navigator.connection || {}).effectiveType || null };
+
+  row.status('optimising…');
+  let body = file, path = 'original';
+  try {
+    const r = await optimize(file);
+    body = r.blob; path = 'optimized';
+    Object.assign(m, { srcW: r.srcW, srcH: r.srcH, outW: r.w, outH: r.h,
+                       decodeMs: r.decodeMs, encodeMs: r.encodeMs, outBytes: r.blob.size });
+  } catch (e) {
+    // The important behaviour: never block an upload because optimisation failed.
+    row.note('optimise failed (' + e.message + ') — uploading the original file instead');
+    m.optimizeError = e.message;
+  }
+  m.path = path;
+  row.preview(body);
+
+  row.status('getting upload url…');
+  const presign = await postJSON('/api/presign', {
+    filename: file.name,
+    contentType: body.type || 'application/octet-stream',
+    size: body.size
+  });
+
+  const t0 = performance.now();
+  m.attempts = await uploadWithRetry(presign, body, row);
+  m.uploadMs = Math.round(performance.now() - t0);
+  m.uploadedBytes = body.size;
+  m.totalMs = Date.now() - started;
+  m.key = presign.key;
+
+  row.progress(1);
+  row.status('done', 'ok');
+  row.stats(summary(m));
+  postJSON('/api/metric', m).catch(() => {});
+}
+
+async function optimize(file){
+  const d0 = performance.now();
+  const src = await decode(file);
+  const decodeMs = Math.round(performance.now() - d0);
+
+  const srcW = src.width, srcH = src.height;
+  if (!srcW || !srcH) throw new Error('zero dimensions');
+
+  const scale = Math.min(1, CFG.maxDim / Math.max(srcW, srcH));
+  const w = Math.max(1, Math.round(srcW * scale));
+  const h = Math.max(1, Math.round(srcH * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(src, 0, 0, w, h);
+  if (src.close) src.close();
+
+  const e0 = performance.now();
+  const blob = await new Promise((res, rej) =>
+    canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob returned null')), 'image/jpeg', CFG.quality));
+  const encodeMs = Math.round(performance.now() - e0);
+
+  canvas.width = canvas.height = 0; // release the backing store promptly on iOS
+  return { blob, w, h, srcW, srcH, decodeMs, encodeMs };
+}
+
+// Two decode paths. Both are meant to apply EXIF orientation; verify that visually
+// with a portrait photo rather than trusting it.
+async function decode(file){
+  if ('createImageBitmap' in window) {
+    try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch (_) { /* Safari may reject the options bag, or the codec (HEIC on desktop) */ }
+    try { return await createImageBitmap(file); } catch (_) { /* fall through */ }
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = () => rej(new Error('browser cannot decode this file'));
+      img.src = url;
+    });
+    return img;
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+}
+
+async function uploadWithRetry(presign, blob, row){
+  let last;
+  for (let i = 1; i <= CFG.attempts; i++) {
+    try {
+      row.status('uploading' + (i > 1 ? ' (attempt ' + i + ')' : '') + '…');
+      row.progress(0);
+      await put(presign, blob, f => row.progress(f));
+      return i;
+    } catch (e) {
+      last = e;
+      row.note('attempt ' + i + ' failed: ' + e.message);
+      if (i < CFG.attempts) {
+        const wait = 500 * Math.pow(2, i - 1);
+        row.status('retrying in ' + wait + 'ms…');
+        await sleep(wait);
+      }
+    }
+  }
+  throw last;
+}
+
+// XHR, not fetch: fetch gives no upload progress without request streams,
+// and an attendee staring at a dead screen is the whole failure mode.
+function put(presign, blob, onProgress){
+  return new Promise((res, rej) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', presign.url, true);
+    for (const [k, v] of Object.entries(presign.headers || {})) xhr.setRequestHeader(k, v);
+    xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300)
+      ? res() : rej(new Error('HTTP ' + xhr.status));
+    xhr.onerror = () => rej(new Error('network error'));
+    xhr.ontimeout = () => rej(new Error('timed out'));
+    xhr.timeout = 120000;
+    xhr.send(blob);
+  });
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const kb = b => b < 1024*1024 ? Math.round(b/1024) + 'KB' : (b/1048576).toFixed(1) + 'MB';
+
+async function postJSON(url, body){
+  const r = await fetch(url, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(url + ' -> HTTP ' + r.status);
+  return r.json();
+}
+
+function summary(m){
+  const lines = [];
+  if (m.path === 'optimized') {
+    const pct = Math.round((1 - m.outBytes / m.originalBytes) * 100);
+    lines.push(m.srcW + 'x' + m.srcH + ' -> ' + m.outW + 'x' + m.outH);
+    lines.push(kb(m.originalBytes) + ' -> ' + kb(m.outBytes) + '  (' + pct + '% smaller)');
+    lines.push('decode ' + m.decodeMs + 'ms · encode ' + m.encodeMs + 'ms');
+  } else {
+    lines.push('sent original, ' + kb(m.originalBytes));
+  }
+  lines.push('upload ' + m.uploadMs + 'ms · attempts ' + m.attempts);
+  lines.push('total ' + m.totalMs + 'ms');
+  return lines.join('\n');
+}
+</script>
+</body>
+</html>
