@@ -1,30 +1,23 @@
 import 'server-only';
 import { and, desc, eq } from 'drizzle-orm';
-import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import { events, mediaAssets, type Event, type MediaAsset } from '@/lib/db/schema';
-import { env } from '@/lib/env';
 import { eventState } from '@/lib/domain/event-state';
 import { sessionForEvent } from '@/lib/auth';
 import { derivedKey } from '@/lib/storage/keys';
 
-export const CONSOLE_COOKIE = 'eh_console';
-
 export type Viewer = 'organizer' | 'attendee' | 'public';
 
 /**
- * Who is asking.
+ * Resolves an ATTENDEE viewer only.
  *
- * The organizer path is a shared console key in a cookie, which is Demo Zero
- * scaffolding and nothing more — it is replaced by magic-link auth in
- * Milestone 1. It is written as a real check now so that every call site is
- * already asking the right question when the mechanism behind it changes.
+ * Organizer standing is never inferred here. It is established by the caller
+ * that actually checked the console key and passed 'organizer' in explicitly —
+ * ambient authority is how a route ends up trusting a credential it never
+ * verified.
  */
-export async function resolveViewer(eventId: string): Promise<Viewer> {
-  const jar = await cookies();
-  if (jar.get(CONSOLE_COOKIE)?.value === env().ORGANIZER_CONSOLE_KEY) return 'organizer';
-  if (await sessionForEvent(eventId)) return 'attendee';
-  return 'public';
+export async function resolveAttendeeViewer(eventId: string): Promise<Viewer> {
+  return (await sessionForEvent(eventId)) ? 'attendee' : 'public';
 }
 
 export type MediaDenial =
@@ -44,6 +37,7 @@ export type MediaDenial =
 export async function authorizeMediaRead(
   assetId: string,
   variant: 'original' | 'thumb',
+  viewer: Viewer | 'resolve-attendee' = 'resolve-attendee',
   now = new Date(),
 ): Promise<{ ok: true; key: string; asset: MediaAsset } | { ok: false; reason: MediaDenial }> {
   const [row] = await db()
@@ -55,18 +49,19 @@ export async function authorizeMediaRead(
 
   if (!row) return { ok: false, reason: 'not_found' };
 
-  const viewer = await resolveViewer(row.event.id);
+  const level =
+    viewer === 'resolve-attendee' ? await resolveAttendeeViewer(row.event.id) : viewer;
 
   // An organizer moderates before approval, so they see pending items — but
   // still nothing that has been removed.
-  if (viewer === 'organizer') {
+  if (level === 'organizer') {
     if (row.asset.state === 'removed' || row.asset.state === 'awaiting_upload') {
       return { ok: false, reason: 'not_found' };
     }
     return { ok: true, key: keyFor(row.asset, variant), asset: row.asset };
   }
 
-  if (viewer !== 'attendee') return { ok: false, reason: 'no_session' };
+  if (level !== 'attendee') return { ok: false, reason: 'no_session' };
   if (row.asset.state !== 'approved') {
     // Deliberately indistinguishable from a missing asset for an attendee:
     // "pending" would confirm that someone uploaded something.
