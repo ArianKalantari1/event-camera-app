@@ -1,0 +1,116 @@
+/*
+ * Design tokens and base styles.
+ *
+ * Plain CSS on purpose: the attendee hub loads on venue wifi, and "small
+ * initial payload" is a stated product constraint, not a preference.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --ground: #f2f4f6;
+  --surface: #ffffff;
+  --surface-2: #f7f9fa;
+  --ink: #0f151b;
+  --ink-2: #4d5a66;
+  --ink-3: #75838f;
+  --line: #d6dee5;
+  --line-2: #e7edf1;
+  --accent: #12557f;
+  --accent-ink: #ffffff;
+  --accent-soft: #e0ecf4;
+  --good: #1b6a4e;
+  --warn: #8f5512;
+  --bad: #a32c22;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(15, 21, 27, 0.05), 0 8px 24px -14px rgba(15, 21, 27, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0c1116;
+    --surface: #141c23;
+    --surface-2: #101820;
+    --ink: #e7edf2;
+    --ink-2: #9dabb7;
+    --ink-3: #76848f;
+    --line: #25313b;
+    --line-2: #1c262e;
+    --accent: #71b6e2;
+    --accent-ink: #0c1116;
+    --accent-soft: #152c3c;
+    --good: #5cbd94;
+    --warn: #d5a05a;
+    --bad: #e08278;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -14px rgba(0, 0, 0, 0.7);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { line-height: 1.2; text-wrap: balance; margin: 0 0 0.5em; }
+h1 { font-size: 1.6rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1rem; }
+p { margin: 0 0 1em; }
+img { max-width: 100%; display: block; }
+
+a { color: var(--accent); }
+a:focus-visible,
+button:focus-visible,
+input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.page { max-width: 640px; margin-inline: auto; padding: 24px 16px 64px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.secondary { background: transparent; color: var(--accent); }
+
+.label {
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+
+.muted { color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
