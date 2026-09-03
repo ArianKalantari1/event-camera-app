@@ -150,7 +150,8 @@ async function main() {
 
       const key = originalKey(event.id, asset.id, 'image/png');
       const display = placeholderImage(1200, 800, i + 1);
-      const thumb = placeholderImage(400, 267, i + 1);
+      // 320px wide: the grid never renders a tile larger than that.
+      const thumb = placeholderImage(320, 213, i + 1);
 
       await write(storageRoot, key, display);
       await write(storageRoot, derivedKey(event.id, asset.id, 'thumb'), thumb);
