@@ -3,13 +3,27 @@ import { notFound, redirect } from 'next/navigation';
 import { sessionForEvent } from '@/lib/auth';
 import { findEventBySlug, listResources, scopesFor } from '@/lib/events';
 import { listApprovedMedia } from '@/lib/media';
-import { formatDateRange, formatRemaining, formatTime } from '@/lib/format';
+import { formatDateRange, formatDay, formatRemaining, formatTime } from '@/lib/format';
 import { paths } from '@/lib/routes';
 import { explainClosed } from '@/lib/domain/event-state';
 import { GalleryGrid } from './gallery/grid';
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+type ScheduleItem = { id: string; label: string; detail: string | null; startsAt: Date | null };
+
+/** Groups schedule rows under their local day, preserving the given order. */
+function groupByDay(items: ScheduleItem[], timeZone: string) {
+  const groups: { day: string; items: ScheduleItem[] }[] = [];
+  for (const item of items) {
+    const day = item.startsAt ? formatDay(item.startsAt, timeZone) : '';
+    const last = groups[groups.length - 1];
+    if (last && last.day === day) last.items.push(item);
+    else groups.push({ day, items: [item] });
+  }
+  return groups;
 }
 
 export default async function HubPage({ params }: Props) {
@@ -83,19 +97,28 @@ export default async function HubPage({ params }: Props) {
       {schedule.length > 0 ? (
         <section className="stack" style={{ gap: 8 }}>
           <p className="label" style={{ margin: 0 }}>Schedule</p>
-          <div className="card stack" style={{ gap: 10 }}>
-            {schedule.map((s) => (
-              <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '68px 1fr', gap: 12 }}>
-                <span className="muted" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>
-                  {s.startsAt ? formatTime(s.startsAt, event.timezone) : '—'}
-                </span>
-                <span>
-                  <strong style={{ fontWeight: 600 }}>{s.label}</strong>
-                  {s.detail ? <span className="muted"> — {s.detail}</span> : null}
-                </span>
-              </div>
-            ))}
-          </div>
+          {/*
+            Grouped by local day. A hackathon runs past midnight, and a flat
+            list of 12-hour times reads as though it goes backwards there.
+          */}
+          {groupByDay(schedule, event.timezone).map((group) => (
+            <div key={group.day} className="card stack" style={{ gap: 10 }}>
+              {group.day ? (
+                <p className="label" style={{ margin: 0 }}>{group.day}</p>
+              ) : null}
+              {group.items.map((s) => (
+                <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '76px 1fr', gap: 12 }}>
+                  <span className="muted" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>
+                    {s.startsAt ? formatTime(s.startsAt, event.timezone) : '—'}
+                  </span>
+                  <span>
+                    <strong style={{ fontWeight: 600 }}>{s.label}</strong>
+                    {s.detail ? <span className="muted"> — {s.detail}</span> : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
         </section>
       ) : null}
 
