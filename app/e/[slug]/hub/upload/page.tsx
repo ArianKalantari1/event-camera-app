@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { sessionForEvent } from '@/lib/auth';
 import { findEventBySlug } from '@/lib/events';
@@ -9,6 +10,17 @@ import { Uploader } from './uploader';
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+/*
+ * Every route used to inherit "Event hub" from the root layout, so a screen
+ * reader announced the same title on arrival at the gate, the hub, the gallery
+ * and the upload screen — no confirmation that the navigation worked.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const loaded = await findEventBySlug(slug);
+  return { title: loaded ? `Add your photos — ${loaded.event.title}` : 'Event not found' };
 }
 
 export default async function UploadPage({ params }: Props) {

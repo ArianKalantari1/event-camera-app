@@ -34,6 +34,11 @@ npm run job:retention -- --dry-run   # what retention would delete
 npm run job:retention                # warn, then delete what is due
 ```
 
+`npm run test:a11y` runs accessibility regression checks against the same server
+— page titles, the upload control's presence in the tab order, gallery labelling
+and the contrast tokens. Focus management and the lightbox need a real browser
+and are not covered there.
+
 `npm run test:security` runs an authorization suite against a running server and
 a seeded database — 47 checks covering media access, cross-event isolation,
 organizer membership, magic-link replay, storage key handling and resource

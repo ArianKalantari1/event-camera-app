@@ -18,6 +18,12 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
+export async function generateMetadata({ params }: Props) {
+  const { slug } = await params;
+  const context = await organizerFor(slug);
+  return { title: context ? `Console — ${context.event.title}` : 'Not found' };
+}
+
 export default async function EventConsole({ params }: Props) {
   const { slug } = await params;
 
@@ -85,7 +91,7 @@ export default async function EventConsole({ params }: Props) {
       </header>
 
       <section className="card stack" style={{ gap: 8 }}>
-        <p className="label" style={{ margin: 0 }}>Attendee link</p>
+        <h2 className="label">Attendee link</h2>
         <code style={{ fontSize: 14, wordBreak: 'break-all' }}>
           {absolute(paths.event(event.slug))}
         </code>
@@ -123,7 +129,7 @@ export default async function EventConsole({ params }: Props) {
         <p className="muted" style={{ margin: 0, fontSize: 14 }}>
           Nothing here is visible to attendees yet.
         </p>
-        <Queue items={pending} slug={slug} />
+        <Queue items={pending} slug={slug} label="Photos waiting for review" />
       </section>
 
       <section className="stack" style={{ gap: 10 }}>
@@ -136,13 +142,13 @@ export default async function EventConsole({ params }: Props) {
           ) : null}
         </div>
         <p className="muted" style={{ margin: 0, fontSize: 14 }}>Live in the attendee gallery now.</p>
-        <Queue items={approved} slug={slug} />
+        <Queue items={approved} slug={slug} label="Approved photos" />
       </section>
 
       {rejected.length > 0 ? (
         <section className="stack" style={{ gap: 10 }}>
           <h2 style={{ margin: 0 }}>Rejected ({rejected.length})</h2>
-          <Queue items={rejected} slug={slug} />
+          <Queue items={rejected} slug={slug} label="Rejected photos" />
         </section>
       ) : null}
     </main>

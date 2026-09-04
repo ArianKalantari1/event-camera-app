@@ -4,9 +4,16 @@ import { sessionForEvent } from '@/lib/auth';
 import { findEventBySlug } from '@/lib/events';
 import { paths } from '@/lib/routes';
 import { CodeForm } from './code-form';
+import type { Metadata } from 'next';
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const loaded = await findEventBySlug(slug);
+  return { title: loaded ? `Enter the event code — ${loaded.event.title}` : 'Event not found' };
 }
 
 export default async function EnterPage({ params }: Props) {
