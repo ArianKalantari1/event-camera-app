@@ -61,9 +61,17 @@ export default async function ConsolePage({ params }: Props) {
         </p>
       </header>
 
-      <section className="card stack" style={{ gap: 6 }}>
+      <section className="card stack" style={{ gap: 8 }}>
         <p className="label" style={{ margin: 0 }}>Attendee link</p>
         <code style={{ fontSize: 14, wordBreak: 'break-all' }}>{absolute(paths.event(event.slug))}</code>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <a className="btn secondary" href={`/console/${key}/${event.slug}/poster`}>
+            Printable poster
+          </a>
+          <a className="btn secondary" href={`/console/${key}/${event.slug}/screen`} target="_blank" rel="noopener noreferrer">
+            Venue screen
+          </a>
+        </div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           The event code is stored hashed and cannot be shown here. Rotate it if it leaks.
         </p>
