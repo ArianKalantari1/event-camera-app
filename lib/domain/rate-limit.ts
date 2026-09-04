@@ -33,7 +33,25 @@ const buckets = new Map<string, Bucket>();
 /** Bounded so a flood of distinct keys cannot grow the map without limit. */
 const MAX_TRACKED_KEYS = 10_000;
 
-export const CODE_ATTEMPTS: RateLimitRule = { limit: 8, windowMs: 10 * 60 * 1000 };
+/**
+ * Two tiers, because one is either useless or hostile.
+ *
+ * Everyone at a venue shares one NAT address. Keyed on the address alone, eight
+ * mistyped codes from eight different people locked the other hundred-and-forty
+ * out for ten minutes — during check-in, which is exactly when everybody is
+ * typing. Keyed only on the device, a script clears its cookie and walks the
+ * code space unbounded.
+ *
+ * So: a tight limit per device, and a loose ceiling per address that a room full
+ * of people fumbling a six-character code will not reach, but a script will.
+ * At 200 attempts per ten minutes against a 25^6 code space behind scrypt, an
+ * attacker needs roughly twenty-three years to cover one percent of it.
+ */
+export const GATE_PER_DEVICE: RateLimitRule = { limit: 8, windowMs: 10 * 60 * 1000 };
+export const GATE_PER_ADDRESS: RateLimitRule = { limit: 200, windowMs: 10 * 60 * 1000 };
+
+/** @deprecated kept as the per-device rule's old name. */
+export const CODE_ATTEMPTS: RateLimitRule = GATE_PER_DEVICE;
 
 function sweep(now: number): void {
   for (const [key, bucket] of buckets) {

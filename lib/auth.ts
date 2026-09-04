@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomBytes } from 'node:crypto';
 import { cookies, headers } from 'next/headers';
 import { and, eq, gt, isNull, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
@@ -98,4 +99,32 @@ export async function clientKey(prefix: string): Promise<string> {
   const forwarded = h.get('x-forwarded-for')?.split(',')[0]?.trim();
   const ip = forwarded || h.get('x-real-ip') || 'unknown';
   return `${prefix}:${ip}`;
+}
+
+export const DEVICE_COOKIE = 'eh_device';
+
+/**
+ * A per-browser bucket id for rate limiting, and nothing else.
+ *
+ * Carries no identity and grants no access: it exists so that one attendee's
+ * typos are counted against them rather than against everyone else sharing the
+ * venue's address. Clearing it is not an attack — the per-address ceiling still
+ * applies — so it is deliberately not tied to a session.
+ */
+export async function deviceKey(prefix: string): Promise<string> {
+  const jar = await cookies();
+  let id = jar.get(DEVICE_COOKIE)?.value;
+
+  if (!id || !/^[A-Za-z0-9_-]{16,64}$/.test(id)) {
+    id = randomBytes(16).toString('base64url');
+    jar.set(DEVICE_COOKIE, id, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: env().APP_URL.startsWith('https://'),
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  }
+
+  return `${prefix}:${id}`;
 }

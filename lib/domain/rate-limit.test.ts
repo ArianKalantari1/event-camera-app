@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { checkRateLimit, resetRateLimit, clearAllRateLimits, type RateLimitRule } from './rate-limit';
+import {
+  checkRateLimit,
+  resetRateLimit,
+  clearAllRateLimits,
+  GATE_PER_DEVICE,
+  GATE_PER_ADDRESS,
+  type RateLimitRule,
+} from './rate-limit';
 
 const RULE: RateLimitRule = { limit: 3, windowMs: 1000 };
 
@@ -49,5 +56,30 @@ describe('resetRateLimit', () => {
     expect(checkRateLimit('a', RULE, t).allowed).toBe(false);
     resetRateLimit('a');
     expect(checkRateLimit('a', RULE, t).allowed).toBe(true);
+  });
+});
+
+describe('the gate is limited in two tiers', () => {
+  it('allows a venue full of people far more attempts than one phone', () => {
+    // Everyone at a venue shares one NAT address. Keyed on the address alone,
+    // eight typos from eight different people locked out everybody else.
+    expect(GATE_PER_ADDRESS.limit).toBeGreaterThan(GATE_PER_DEVICE.limit * 10);
+  });
+
+  it('still bounds a script that clears its device cookie', () => {
+    // 25^6 codes behind scrypt at this rate is not a realistic attack.
+    const perDay = (GATE_PER_ADDRESS.limit / GATE_PER_ADDRESS.windowMs) * 86_400_000;
+    expect(perDay).toBeLessThan(50_000);
+  });
+
+  it('counts a device and an address independently', () => {
+    const t = 2_000_000;
+    for (let i = 0; i < GATE_PER_DEVICE.limit; i++) {
+      expect(checkRateLimit('gate:e:device-a', GATE_PER_DEVICE, t).allowed).toBe(true);
+    }
+    expect(checkRateLimit('gate:e:device-a', GATE_PER_DEVICE, t).allowed).toBe(false);
+    // A different phone on the same venue address is unaffected.
+    expect(checkRateLimit('gate:e:device-b', GATE_PER_DEVICE, t).allowed).toBe(true);
+    expect(checkRateLimit('gate:e:203.0.113.7', GATE_PER_ADDRESS, t).allowed).toBe(true);
   });
 });
