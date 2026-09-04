@@ -19,20 +19,29 @@ downscale, retry and a browser-generated thumbnail · moderation queue with an
 audit trail · printable QR poster and venue screen · magic-link organizer
 sign-in with per-event membership · self-service event creation, settings and
 code rotation · retention warning and deletion job · bulk export of approved originals as a
-streamed zip · attendee removal requests with an organizer queue · seed with a
-demo event.
+streamed zip · attendee removal requests with an organizer queue · first-party funnel
+analytics · seed with a demo event.
 
-**Not built.** Analytics events · accessibility audit · deployment.
+**Not built.** Accessibility audit · deployment.
 
 **Not verified, and only a real device can.** iOS Safari and Android Chrome.
 Every browser check so far is Chromium. The EXIF-orientation question on a real
 portrait iPhone photo — the one that decides whether the gallery works at all —
 is still open. `spike/upload` answers it in ten minutes.
 
-Two numbers worth carrying forward. Time to first screenful of a 40-photo
-gallery: 1.5s on congested venue wifi (1.5Mbps/150ms), 5.1s on a hostile
-400kbps/400ms profile. And the authorization suite (`npm run test:security`) is
-47 checks, all passing.
+Numbers worth carrying forward. Time to first screenful of a 40-photo gallery:
+1.5s on congested venue wifi (1.5Mbps/150ms), 5.1s on a hostile 400kbps/400ms
+profile. 141 unit tests. The authorization suite (`npm run test:security`) is 55
+checks, all passing.
+
+**A security review of the whole build found two high-severity defects, both
+fixed.** The browser used to upload the thumbnail separately from the image, and
+the moderation queue reviewed the thumbnail while the gallery served the
+original — so an attendee could get arbitrary content approved. And presigned
+uploads outlived approval, so an already-approved photo could be swapped. Both
+were reproduced, fixed by making the served key one that was never presigned and
+deriving the thumbnail server-side, and both now have regression checks. Details
+in the commits on `fix/20-moderation-integrity`.
 
 ## 1. Decisions already made
 
