@@ -4,20 +4,23 @@ import { db } from '@/lib/db';
 import { events, mediaAssets, type Event, type MediaAsset } from '@/lib/db/schema';
 import { eventState } from '@/lib/domain/event-state';
 import { sessionForEvent } from '@/lib/auth';
+import { organizerForEventId } from '@/lib/organizer';
 import { derivedKey } from '@/lib/storage/keys';
 
 export type Viewer = 'organizer' | 'attendee' | 'public';
 
 /**
- * Resolves an ATTENDEE viewer only.
+ * Who is asking, for THIS event.
  *
- * Organizer standing is never inferred here. It is established by the caller
- * that actually checked the console key and passed 'organizer' in explicitly —
- * ambient authority is how a route ends up trusting a credential it never
- * verified.
+ * Organizer standing is a membership of the organization that owns this
+ * specific event, resolved from the database on the request — not a blanket
+ * credential that would make every event's media readable. Attendee standing is
+ * a device session for this same event.
  */
-export async function resolveAttendeeViewer(eventId: string): Promise<Viewer> {
-  return (await sessionForEvent(eventId)) ? 'attendee' : 'public';
+export async function resolveViewer(eventId: string): Promise<Viewer> {
+  if (await organizerForEventId(eventId)) return 'organizer';
+  if (await sessionForEvent(eventId)) return 'attendee';
+  return 'public';
 }
 
 export type MediaDenial =
@@ -37,7 +40,6 @@ export type MediaDenial =
 export async function authorizeMediaRead(
   assetId: string,
   variant: 'original' | 'thumb',
-  viewer: Viewer | 'resolve-attendee' = 'resolve-attendee',
   now = new Date(),
 ): Promise<{ ok: true; key: string; asset: MediaAsset } | { ok: false; reason: MediaDenial }> {
   const [row] = await db()
@@ -49,8 +51,7 @@ export async function authorizeMediaRead(
 
   if (!row) return { ok: false, reason: 'not_found' };
 
-  const level =
-    viewer === 'resolve-attendee' ? await resolveAttendeeViewer(row.event.id) : viewer;
+  const level = await resolveViewer(row.event.id);
 
   // An organizer moderates before approval, so they see pending items — but
   // still nothing that has been removed.

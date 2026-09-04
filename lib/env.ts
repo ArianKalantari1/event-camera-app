@@ -28,7 +28,9 @@ const schema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_FORCE_PATH_STYLE: bool,
 
-  ORGANIZER_CONSOLE_KEY: z.string().min(8, 'ORGANIZER_CONSOLE_KEY must be at least 8 characters'),
+  MAIL_DRIVER: z.enum(['console', 'resend']).default('console'),
+  MAIL_FROM: z.string().default('Event hub <onboarding@resend.dev>'),
+  MAIL_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -47,6 +49,9 @@ export function env(): Env {
   }
 
   const value = parsed.data;
+  if (value.MAIL_DRIVER === 'resend' && !value.MAIL_API_KEY) {
+    throw new Error('MAIL_DRIVER=resend requires MAIL_API_KEY. See .env.example.');
+  }
   if (value.STORAGE_DRIVER === 's3') {
     const missing = (['S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const).filter(
       (k) => !value[k],

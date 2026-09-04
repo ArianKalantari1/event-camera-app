@@ -1,12 +1,11 @@
-import { notFound } from 'next/navigation';
-import { isConsoleKey } from '@/lib/console';
-import { findEventBySlug } from '@/lib/events';
+import { notFound, redirect } from 'next/navigation';
+import { currentOrganizer, organizerFor } from '@/lib/organizer';
 import { qrSvg } from '@/lib/qr';
 import { absolute, paths } from '@/lib/routes';
 import './screen.css';
 
 interface Props {
-  params: Promise<{ key: string; slug: string }>;
+  params: Promise<{ slug: string }>;
   searchParams: Promise<{ code?: string }>;
 }
 
@@ -23,14 +22,14 @@ interface Props {
  * keeps no record of it.
  */
 export default async function ScreenPage({ params, searchParams }: Props) {
-  const { key, slug } = await params;
-  if (!isConsoleKey(key)) notFound();
+  const { slug } = await params;
+  if (!(await currentOrganizer())) redirect('/organizer/login');
 
-  const loaded = await findEventBySlug(slug);
-  if (!loaded) notFound();
+  const context = await organizerFor(slug);
+  if (!context) notFound();
 
   const { code } = await searchParams;
-  const { event } = loaded;
+  const { event } = context;
   const url = absolute(paths.eventGate(event.slug));
   const qr = qrSvg(url);
 

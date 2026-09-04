@@ -66,11 +66,91 @@ export const mediaState = pgEnum('media_state', [
 
 export const actorType = pgEnum('actor_type', ['organizer', 'attendee', 'system']);
 
+/**
+ * Organization roles.
+ *
+ * `owner` can change the event and its access; `moderator` can only act on
+ * media. An event's moderation queue is often staffed by volunteers on the day,
+ * and handing them the ability to rotate the event code or delete the event is
+ * not a favour to anybody.
+ */
+export const orgRole = pgEnum('org_role', ['owner', 'moderator']);
+
 export const organizations = pgTable('organizations', {
   id: uuid('id').primaryKey().default(newId),
   name: text('name').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
 });
+
+export const organizerUsers = pgTable(
+  'organizer_users',
+  {
+    id: uuid('id').primaryKey().default(newId),
+    email: text('email').notNull(),
+    name: text('name'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  },
+  // Addresses are stored already lower-cased, so this index is the uniqueness
+  // rule rather than merely a lookup: Ari@x and ari@x must not be two accounts.
+  (t) => [uniqueIndex('organizer_users_email_key').on(t.email)],
+);
+
+export const organizationMembers = pgTable(
+  'organization_members',
+  {
+    id: uuid('id').primaryKey().default(newId),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => organizerUsers.id, { onDelete: 'cascade' }),
+    role: orgRole('role').notNull().default('moderator'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('organization_members_org_user_key').on(t.orgId, t.userId),
+    index('organization_members_user_idx').on(t.userId),
+  ],
+);
+
+/**
+ * Single-use sign-in links.
+ *
+ * Only the hash is stored, and `consumedAt` is set by a conditional update, so
+ * a link forwarded or captured in a mail log cannot be redeemed twice.
+ */
+export const loginTokens = pgTable(
+  'login_tokens',
+  {
+    id: uuid('id').primaryKey().default(newId),
+    email: text('email').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('login_tokens_token_key').on(t.tokenHash),
+    index('login_tokens_email_idx').on(t.email),
+  ],
+);
+
+export const organizerSessions = pgTable(
+  'organizer_sessions',
+  {
+    id: uuid('id').primaryKey().default(newId),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => organizerUsers.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().default(now),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (t) => [uniqueIndex('organizer_sessions_token_key').on(t.tokenHash)],
+);
 
 export const events = pgTable(
   'events',
@@ -221,3 +301,7 @@ export type EventResource = typeof eventResources.$inferSelect;
 export type EventSession = typeof eventSessions.$inferSelect;
 export type MediaAsset = typeof mediaAssets.$inferSelect;
 export type AuditEvent = typeof auditEvents.$inferSelect;
+export type OrganizerUser = typeof organizerUsers.$inferSelect;
+export type OrganizationMember = typeof organizationMembers.$inferSelect;
+export type OrganizerSession = typeof organizerSessions.$inferSelect;
+export type OrgRole = (typeof orgRole.enumValues)[number];

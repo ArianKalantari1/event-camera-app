@@ -11,7 +11,7 @@ export interface QueueItem {
   bytes: number | null;
 }
 
-export function Queue({ items, consoleKey }: { items: QueueItem[]; consoleKey: string }) {
+export function Queue({ items, slug }: { items: QueueItem[]; slug: string }) {
   if (items.length === 0) {
     return <p className="muted" style={{ margin: 0 }}>Nothing here.</p>;
   }
@@ -27,13 +27,13 @@ export function Queue({ items, consoleKey }: { items: QueueItem[]; consoleKey: s
       }}
     >
       {items.map((item) => (
-        <Tile key={item.id} item={item} consoleKey={consoleKey} />
+        <Tile key={item.id} item={item} slug={slug} />
       ))}
     </ul>
   );
 }
 
-function Tile({ item, consoleKey }: { item: QueueItem; consoleKey: string }) {
+function Tile({ item, slug }: { item: QueueItem; slug: string }) {
   const [pending, start] = useTransition();
   const [note, setNote] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
@@ -42,17 +42,17 @@ function Tile({ item, consoleKey }: { item: QueueItem; consoleKey: string }) {
 
   const act = (decision: Decision) =>
     start(async () => {
-      const res = await moderate(consoleKey, item.id, decision);
+      const res = await moderate(slug, item.id, decision);
       if (res.ok) setGone(true);
       else setNote(res.message ?? 'That did not work.');
     });
 
   return (
     <li className="card" style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <a href={`/console/${consoleKey}/media/${item.id}`} target="_blank" rel="noopener noreferrer">
+      <a href={`/api/media/${item.id}`} target="_blank" rel="noopener noreferrer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`/console/${consoleKey}/media/${item.id}?v=thumb`}
+          src={`/api/media/${item.id}?v=thumb`}
           alt=""
           loading="lazy"
           style={{
@@ -66,7 +66,7 @@ function Tile({ item, consoleKey }: { item: QueueItem; consoleKey: string }) {
       </a>
 
       <p className="muted" style={{ margin: 0, fontSize: 12 }}>
-        {item.contributor ? item.contributor : 'Anonymous'}
+        {item.contributor ?? 'Anonymous'}
         {item.bytes ? ` · ${Math.round(item.bytes / 1024)}KB` : ''}
       </p>
 

@@ -9,9 +9,13 @@ import {
   eventResources,
   eventSessions,
   events,
+  loginTokens,
   mediaAssets,
+  organizationMembers,
   organizations,
+  organizerUsers,
 } from '../lib/db/schema';
+import { hashSessionToken, mintSessionToken, LOGIN_TOKEN_TTL_MS } from '../lib/domain/session';
 import { hashCode } from '../lib/domain/codes';
 import { derivedKey, originalKey } from '../lib/storage/keys';
 import { placeholderImage } from './png';
@@ -30,6 +34,8 @@ const TIMEZONE = 'Australia/Sydney';
 const CODE = 'HJ4K9M';
 const APPROVED = 40;
 const PENDING = 5;
+
+const ORGANIZER_EMAIL = process.env.SEED_ORGANIZER_EMAIL ?? 'organizer@example.com';
 
 const CONTRIBUTORS = [
   'Priya', 'Tom', 'Wei', 'Amara', 'Jonas', 'Sofia', 'Dev', 'Mei', 'Callum', 'Ruth',
@@ -67,6 +73,20 @@ async function main() {
       .insert(organizations)
       .values({ name: 'Sydney Builders Collective' })
       .returning();
+
+    // One organizer account, owner of that organization. Created only if the
+    // address is new, so reseeding does not orphan an existing sign-in.
+    const [existingUser] = await db
+      .select()
+      .from(organizerUsers)
+      .where(eq(organizerUsers.email, ORGANIZER_EMAIL))
+      .limit(1);
+
+    const user =
+      existingUser ??
+      (await db.insert(organizerUsers).values({ email: ORGANIZER_EMAIL, name: 'Demo organizer' }).returning())[0];
+
+    await db.insert(organizationMembers).values({ orgId: org.id, userId: user.id, role: 'owner' });
 
     const [event] = await db
       .insert(events)
@@ -171,14 +191,27 @@ async function main() {
     });
 
     const base = process.env.APP_URL ?? 'http://localhost:3000';
-    const consoleKey = process.env.ORGANIZER_CONSOLE_KEY ?? 'dev-console-key';
+
+    // A ready-to-use sign-in link, so a fresh checkout does not need a working
+    // mailbox to reach the organizer console. It is single-use and expires like
+    // any other, and it is printed to a terminal the developer already controls.
+    const token = mintSessionToken();
+    await db.insert(loginTokens).values({
+      email: ORGANIZER_EMAIL,
+      tokenHash: hashSessionToken(token, process.env.SESSION_SECRET!),
+      expiresAt: new Date(Date.now() + LOGIN_TOKEN_TTL_MS),
+    });
 
     console.log(`
 seeded "${event.title}"
 
-  public page   ${base}/e/${SLUG}
-  attendee code ${CODE}
-  console       ${base}/console/${consoleKey}/${SLUG}
+  public page    ${base}/e/${SLUG}
+  attendee code  ${CODE}
+
+  organizer      ${ORGANIZER_EMAIL}
+  sign in now    ${base}/organizer/verify?token=${encodeURIComponent(token)}
+                 (single use, expires in 15 minutes — afterwards use
+                  ${base}/organizer/login and read the link from this log)
 
   ${APPROVED} approved photos, ${PENDING} waiting for review, ${(written / 1048576).toFixed(1)}MB written
 `);
