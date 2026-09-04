@@ -104,7 +104,14 @@ export default async function EventConsole({ params }: Props) {
       </section>
 
       <section className="stack" style={{ gap: 10 }}>
-        <h2 style={{ margin: 0 }}>Approved ({approved.length})</h2>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0 }}>Approved ({approved.length})</h2>
+          {approved.length > 0 ? (
+            <a href={`/organizer/events/${event.slug}/export`} style={{ fontSize: 14 }}>
+              Download all as a zip
+            </a>
+          ) : null}
+        </div>
         <p className="muted" style={{ margin: 0, fontSize: 14 }}>Live in the attendee gallery now.</p>
         <Queue items={approved} slug={slug} />
       </section>

@@ -185,6 +185,10 @@ async function main() {
     (await get('/organizer/events/demo42/settings', stranger.cookie)).status === 404);
   check('signed-in organizer without membership gets 404 on the poster',
     (await get('/organizer/events/demo42/poster', stranger.cookie)).status === 404);
+  check('anonymous cannot export approved originals',
+    (await get('/organizer/events/demo42/export')).status === 404);
+  check('organizer without membership cannot export',
+    (await get('/organizer/events/demo42/export', stranger.cookie)).status === 404);
   check('a forged session cookie is not a session',
     [302, 303, 307].includes((await get('/organizer', 'eh_organizer=' + randomBytes(32).toString('base64url'))).status));
 
