@@ -164,6 +164,8 @@ export const organizerSessions = pgTable(
     tokenHash: text('token_hash').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().default(now),
+    /** See event_sessions.expires_at. Shorter here: this session can moderate. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
   },
   (t) => [uniqueIndex('organizer_sessions_token_key').on(t.tokenHash)],
@@ -264,6 +266,12 @@ export const eventSessions = pgTable(
     linkedinUrl: text('linkedin_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().default(now),
+    /**
+     * Enforced server-side, not only by the cookie's Max-Age. A cookie value
+     * that leaves the browser it was set in — copied off a shared laptop, read
+     * from a backup — stops working on schedule rather than never.
+     */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
   },
   (t) => [
