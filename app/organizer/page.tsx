@@ -14,11 +14,14 @@ export default async function OrganizerHome() {
 
   return (
     <main className="page stack" style={{ maxWidth: 900 }}>
-      <h1 style={{ margin: 0 }}>Your events</h1>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <h1 style={{ margin: 0 }}>Your events</h1>
+        <Link className="btn" href="/organizer/events/new">New event</Link>
+      </div>
 
       {rows.length === 0 ? (
         <p className="muted">
-          No events yet. Ask whoever set up your organization to add you to one.
+          No events yet. Create one, or ask whoever set up your organization to add you to theirs.
         </p>
       ) : (
         <ul className="stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 10 }}>

@@ -82,6 +82,11 @@ export default async function EventConsole({ params }: Props) {
           >
             Venue screen
           </a>
+          {role === 'owner' ? (
+            <Link className="btn secondary" href={`/organizer/events/${event.slug}/settings`}>
+              Settings
+            </Link>
+          ) : null}
         </div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           The event code is stored hashed and cannot be shown here. Rotate it if it leaks.
