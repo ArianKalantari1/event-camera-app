@@ -35,6 +35,15 @@ import { formatDay } from '@/lib/format';
 
 export const WARNING_DAYS = 7;
 
+/**
+ * How long a reservation may sit unfinished before it is swept.
+ *
+ * Comfortably longer than the signed-upload window, so a slow upload on venue
+ * wifi is never cut off, and short enough that abandoned reservations and the
+ * objects behind them do not accumulate.
+ */
+export const ABANDONED_UPLOAD_HOURS = 6;
+
 export interface RetentionOptions {
   now?: Date;
   /** Report what would happen and change nothing, including sending no mail. */
@@ -44,6 +53,7 @@ export interface RetentionOptions {
 export interface RetentionReport {
   warned: { slug: string; title: string; recipients: number }[];
   purged: { slug: string; title: string; mediaRows: number; objects: number }[];
+  abandoned: number;
   dryRun: boolean;
 }
 
@@ -60,7 +70,7 @@ async function ownersOf(orgId: string): Promise<string[]> {
 export async function runRetention(options: RetentionOptions = {}): Promise<RetentionReport> {
   const now = options.now ?? new Date();
   const dryRun = options.dryRun ?? false;
-  const report: RetentionReport = { warned: [], purged: [], dryRun };
+  const report: RetentionReport = { warned: [], purged: [], abandoned: 0, dryRun };
 
   const warningHorizon = new Date(now.getTime() + WARNING_DAYS * 86_400_000);
 
@@ -174,6 +184,31 @@ export async function runRetention(options: RetentionOptions = {}): Promise<Rete
       mediaRows: rows.length,
       objects,
     });
+  }
+
+  // ---- phase three: abandoned reservations --------------------------------
+  // A row that never received its bytes is not a contribution. It is invisible
+  // everywhere, but it and the object behind it both persist, so they are swept.
+  const abandonedBefore = new Date(now.getTime() - ABANDONED_UPLOAD_HOURS * 3_600_000);
+  const abandoned = await db()
+    .select({ id: mediaAssets.id, storageKey: mediaAssets.storageKey })
+    .from(mediaAssets)
+    .where(
+      and(eq(mediaAssets.state, 'awaiting_upload'), lte(mediaAssets.createdAt, abandonedBefore)),
+    );
+
+  if (dryRun) {
+    report.abandoned = abandoned.length;
+    return report;
+  }
+
+  for (const row of abandoned) {
+    await storage().delete(row.storageKey);
+    const removed = await db()
+      .delete(mediaAssets)
+      .where(and(eq(mediaAssets.id, row.id), eq(mediaAssets.state, 'awaiting_upload')))
+      .returning({ id: mediaAssets.id });
+    report.abandoned += removed.length;
   }
 
   return report;

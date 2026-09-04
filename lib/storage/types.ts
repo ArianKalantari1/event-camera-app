@@ -23,6 +23,11 @@ export interface ObjectInfo {
  */
 export interface StorageDriver {
   readonly name: 'local' | 's3';
+  /**
+   * Five minutes, not fifteen. The window only has to cover one photo upload on
+   * bad wifi, and a signed write capability should not outlive its purpose by
+   * more than it must.
+   */
   presignUpload(key: string, contentType: string, expiresInSeconds?: number): Promise<PresignedUpload>;
   /** Short-lived read URL. Callers must authorize BEFORE minting one. */
   signedReadUrl(key: string, expiresInSeconds?: number): Promise<string>;

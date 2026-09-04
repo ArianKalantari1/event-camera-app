@@ -136,11 +136,39 @@ async function main() {
     (await post('/api/uploads', attendee, { ...body, declaredBytes: 50 * 1024 * 1024 })).status === 400);
 
   const reserved = await post('/api/uploads', attendee, body);
-  const { assetId } = await reserved.json();
+  const reservation = await reserved.json();
+  const { assetId } = reservation;
+
+  // Regression: the client used to be handed a second presigned url for the
+  // thumbnail. The moderation queue rendered that thumbnail while attendees were
+  // served the original, so an attacker could get arbitrary content approved by
+  // uploading a benign thumbnail and a harmful original. Only one url now, and
+  // it points at a prefix that is never served.
+  check('reservation hands out exactly one upload url',
+    Object.keys(reservation).filter((k) => k !== 'assetId').join(',') === 'upload',
+    Object.keys(reservation).join(','));
+  check('the presigned key is under the never-served incoming prefix',
+    decodeURIComponent(new URL(reservation.upload.url, BASE).searchParams.get('key') ?? reservation.upload.url)
+      .includes('/incoming/'));
+
+  // Regression: bytes were never decoded, so anything at all could be stored and
+  // served as an image. The completion step now decodes and discards the row.
+  await fetch(new URL(reservation.upload.url, BASE).toString(), {
+    method: 'PUT',
+    headers: { ...reservation.upload.headers, cookie: attendee },
+    body: Buffer.from('this is definitely not an image'.repeat(40)),
+  });
+  const junk = await post(`/api/uploads/${assetId}/complete`, attendee);
+  check('a non-image upload is refused at completion', junk.status === 415, `got ${junk.status}`);
+  const [stillThere] = await sql`select id from media_assets where id = ${assetId}`;
+  check('the refused reservation leaves no row behind', !stillThere);
+
+  const reserved2 = await post('/api/uploads', attendee, body);
+  const { assetId: assetId2 } = await reserved2.json();
   check('completing with no bytes uploaded is refused',
-    (await post(`/api/uploads/${assetId}/complete`, attendee)).status === 409);
+    (await post(`/api/uploads/${assetId2}/complete`, attendee)).status === 409);
   check('another device cannot complete someone else\'s reservation',
-    (await post(`/api/uploads/${assetId}/complete`, otherAttendee)).status === 404);
+    (await post(`/api/uploads/${assetId2}/complete`, otherAttendee)).status === 404);
 
   await sql`update events set uploads_close_at = now() - interval '1 minute' where id = ${event.id}`;
   check('uploads are refused once the window closes',

@@ -31,14 +31,12 @@ export function Uploader({ slug }: { slug: string }) {
       patch(key, { status: 'preparing' });
 
       let display: Blob = file;
-      let thumb: Blob | null = null;
       let width: number | undefined;
       let height: number | undefined;
 
       try {
         const processed = await processImage(file);
         display = processed.display;
-        thumb = processed.thumb;
         width = processed.width;
         height = processed.height;
       } catch (err) {
@@ -68,11 +66,10 @@ export function Uploader({ slug }: { slug: string }) {
         throw new Error(body.error ?? 'could not start the upload');
       }
 
-      const { assetId, upload, thumb: thumbTarget } = await res.json();
+      const { assetId, upload } = await res.json();
 
       patch(key, { status: 'uploading', progress: 0 });
       await putWithRetry(upload, display, 3, (f) => patch(key, { progress: f }));
-      if (thumb) await putWithRetry(thumbTarget, thumb, 2);
 
       const done = await fetch(`/api/uploads/${assetId}/complete`, { method: 'POST' });
       if (!done.ok) {

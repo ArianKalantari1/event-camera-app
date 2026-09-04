@@ -6,7 +6,7 @@ import { mediaAssets } from '@/lib/db/schema';
 import { sessionForEvent } from '@/lib/auth';
 import { findEventBySlug, recordAudit } from '@/lib/events';
 import { checkRateLimit, type RateLimitRule } from '@/lib/domain/rate-limit';
-import { storage, ACCEPTED_MIME, MAX_UPLOAD_BYTES, originalKey, derivedKey } from '@/lib/storage';
+import { storage, ACCEPTED_MIME, MAX_UPLOAD_BYTES, incomingKey } from '@/lib/storage';
 import { track } from '@/lib/analytics';
 
 export const runtime = 'nodejs';
@@ -31,9 +31,12 @@ const Body = z.object({
  * corresponds to something the server intended. Bytes that never arrive leave
  * an abandoned row rather than an orphaned object nothing can account for.
  *
- * Two URLs come back: the display image and its thumbnail, both produced by the
- * uploading browser. That is what keeps a gallery grid off the originals
- * without any server-side image processing or job queue.
+ * Exactly ONE url comes back, and it points at the `incoming` prefix, which is
+ * never served to anyone. Completion validates those bytes and copies them to a
+ * key that was never presigned. Two things follow that did not hold before: a
+ * client cannot supply the thumbnail a moderator reviews independently of the
+ * image everyone is shown, and a still-valid signed url cannot be replayed to
+ * overwrite an image after it has been approved.
  */
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
@@ -77,16 +80,12 @@ export async function POST(req: Request) {
     })
     .returning();
 
-  const key = originalKey(loaded.event.id, asset.id, body.contentType);
-  const thumbKey = derivedKey(loaded.event.id, asset.id, 'thumb');
-
+  // storageKey holds the INCOMING key until completion replaces it with the
+  // served key. Nothing reads it for display while the row is awaiting_upload.
+  const key = incomingKey(loaded.event.id, asset.id, body.contentType);
   await db().update(mediaAssets).set({ storageKey: key }).where(eq(mediaAssets.id, asset.id));
 
-  const driver = storage();
-  const [upload, thumb] = await Promise.all([
-    driver.presignUpload(key, body.contentType),
-    driver.presignUpload(thumbKey, 'image/jpeg'),
-  ]);
+  const upload = await storage().presignUpload(key, body.contentType);
 
   await track('upload.started', { eventId: loaded.event.id, sessionId: session.session.id });
   await recordAudit({
@@ -97,5 +96,5 @@ export async function POST(req: Request) {
     target: asset.id,
   });
 
-  return NextResponse.json({ assetId: asset.id, upload, thumb });
+  return NextResponse.json({ assetId: asset.id, upload });
 }
