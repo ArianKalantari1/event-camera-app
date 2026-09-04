@@ -7,9 +7,14 @@
  */
 
 export const DISPLAY_MAX_DIM = 2048;
-export const THUMB_MAX_DIM = 512;
+/**
+ * 384px, not 512. The grid never renders a tile wider than about 120 CSS px, so
+ * 384 still covers a 3x display with room to spare, and the smaller edge is
+ * roughly a third fewer bytes on a page that requests forty of these.
+ */
+export const THUMB_MAX_DIM = 384;
 export const DISPLAY_QUALITY = 0.82;
-export const THUMB_QUALITY = 0.7;
+export const THUMB_QUALITY = 0.68;
 
 export interface Processed {
   display: Blob;

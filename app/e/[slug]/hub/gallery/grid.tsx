@@ -14,7 +14,13 @@ export interface GalleryItem {
  * Forty full-size photos is roughly ten megabytes on a venue's wifi. The
  * uploading browser produces the thumbnail, so this costs no server-side image
  * processing and no job queue.
+ *
+ * The first row is fetched eagerly at high priority and everything after it
+ * lazily at low priority. Browsers open about six connections per origin, so
+ * without this the tiles someone is actually looking at queue behind tiles two
+ * screens down — on a slow link that is most of the wait, more than the bytes.
  */
+const EAGER_TILES = 6;
 export function GalleryGrid({ slug, items }: { slug: string; items: GalleryItem[] }) {
   const [open, setOpen] = useState<string | null>(null);
 
@@ -30,7 +36,7 @@ export function GalleryGrid({ slug, items }: { slug: string; items: GalleryItem[
           gap: 6,
         }}
       >
-        {items.map((item) => (
+        {items.map((item, index) => (
           <li key={item.id}>
             <button
               type="button"
@@ -52,7 +58,8 @@ export function GalleryGrid({ slug, items }: { slug: string; items: GalleryItem[
               <img
                 src={`/api/media/${item.id}?v=thumb`}
                 alt=""
-                loading="lazy"
+                loading={index < EAGER_TILES ? 'eager' : 'lazy'}
+                fetchPriority={index < EAGER_TILES ? 'high' : 'low'}
                 decoding="async"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
