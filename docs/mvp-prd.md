@@ -1,12 +1,37 @@
 # Photo-first MVP — PRD
 
-**Version** 0.1 · **Date** 2026-09-03 · **Owner** Ari · **Status** Draft
+**Version** 0.2 · **Date** 2026-09-04 · **Owner** Ari · **Status** Milestone 0 built, parts of Milestone 1 built
 
 Scoped to Phase 2 of the *Event Media Product Development Journey* (v0.2), rewritten
 for one solo developer instead of the two-engineer team that document assumes.
 Phases 4–8 appear here only as things this release must not preclude.
 
 ---
+
+## 0. Where this actually is
+
+Written against the code, not against intentions.
+
+**Built and verified end to end.** Public event page with scope-filtered
+resources · event code gate with attempt limiting · attendee device sessions ·
+hub, gallery and gated media · client-side image pipeline with EXIF-safe
+downscale, retry and a browser-generated thumbnail · moderation queue with an
+audit trail · printable QR poster and venue screen · magic-link organizer
+sign-in with per-event membership · self-service event creation, settings and
+code rotation · retention warning and deletion job · seed with a demo event.
+
+**Not built.** Bulk export of approved originals · analytics events ·
+report-content and removal-request pathway · accessibility audit · deployment.
+
+**Not verified, and only a real device can.** iOS Safari and Android Chrome.
+Every browser check so far is Chromium. The EXIF-orientation question on a real
+portrait iPhone photo — the one that decides whether the gallery works at all —
+is still open. `spike/upload` answers it in ten minutes.
+
+Two numbers worth carrying forward. Time to first screenful of a 40-photo
+gallery: 1.5s on congested venue wifi (1.5Mbps/150ms), 5.1s on a hostile
+400kbps/400ms profile. And the authorization suite (`npm run test:security`) is
+47 checks, all passing.
 
 ## 1. Decisions already made
 
@@ -20,7 +45,9 @@ These are settled. Reopening them costs more than living with them.
 | Database | Neon Postgres | Free at pilot scale, real Postgres |
 | Media storage | Cloudflare R2 via the plain S3 API | Zero egress; see §9 |
 | Hosting | Vercel (Pro if monetised — Hobby is non-commercial) | |
-| Analytics | PostHog | Covers the metrics epic without building one |
+| Analytics | PostHog | Covers the metrics epic without building one (not yet wired) |
+| Organizer auth | Magic link, mailer behind an interface | Console driver needs no mail account in development |
+| QR generation | `qrcode-generator` | MIT, zero dependencies, rendered server-side to SVG |
 | Existing codebases | Reference only, never forked | See `docs/reference-picpeak.md` |
 | Cloud provider (AWS vs Azure) | **Deferred** | Expected credits are not credits. S3 API keeps it reversible |
 
@@ -76,14 +103,22 @@ for approval. Nothing else.
 - A seeded demo event with ~40 good photos already approved
 - Error tracking
 
-### Explicitly deferred to Milestone 1
+### Deferred at the time, and what happened since
 
-Organizer self-service event creation · organizer authentication · retention and
-deletion jobs · bulk export · QR poster generator · branded share templates · the
-event template *system* · analytics · staging environment · background job queue.
+Deferred: organizer self-service creation · organizer authentication · retention
+and deletion jobs · bulk export · QR poster generator · branded share templates ·
+the event template *system* · analytics · staging environment · background job
+queue.
 
-Events are created by a seed script. The moderation UI sits behind an unguessable
-URL. Both are temporary and both are replaced before any real attendee data exists.
+Since built: **organizer authentication**, **self-service creation and
+settings**, **retention and deletion**, and the **QR poster and venue screen**.
+The shared console key that stood in for authentication is gone rather than left
+beside the real thing.
+
+Still deferred: bulk export · branded share templates · a template *system* ·
+analytics · staging · a job queue. The background queue looks unlikely to be
+needed at all — the browser produces the thumbnail, so nothing is waiting on
+server-side image work.
 
 ### Milestone 0 acceptance
 
