@@ -44,20 +44,24 @@ function check(name, condition, detail = '') {
 const hash = (token) => createHmac('sha256', SECRET).update(token).digest('base64url');
 
 /** An attendee device session for one event, made the way the app makes one. */
-async function attendeeSession(eventId) {
+async function attendeeSession(eventId, expiresAt = null) {
   const token = randomBytes(32).toString('base64url');
-  await sql`insert into event_sessions (event_id, token_hash) values (${eventId}, ${hash(token)})`;
+  await sql`
+    insert into event_sessions (event_id, token_hash, expires_at)
+    values (${eventId}, ${hash(token)}, ${expiresAt})`;
   return `eh_session=${token}`;
 }
 
 /** An organizer session, optionally without membership of anything. */
-async function organizerSession(email) {
+async function organizerSession(email, expiresAt = null) {
   const [user] = await sql`
     insert into organizer_users (email, name) values (${email}, 'Suite')
     on conflict (email) do update set name = 'Suite'
     returning id`;
   const token = randomBytes(32).toString('base64url');
-  await sql`insert into organizer_sessions (user_id, token_hash) values (${user.id}, ${hash(token)})`;
+  await sql`
+    insert into organizer_sessions (user_id, token_hash, expires_at)
+    values (${user.id}, ${hash(token)}, ${expiresAt})`;
   return { cookie: `eh_organizer=${token}`, userId: user.id };
 }
 
@@ -217,6 +221,18 @@ async function main() {
     (await get('/organizer/events/demo42/export')).status === 404);
   check('organizer without membership cannot export',
     (await get('/organizer/events/demo42/export', stranger.cookie)).status === 404);
+  // Server-side expiry, not merely a cookie Max-Age. A cookie value that leaves
+  // the browser it was set in must stop working on schedule rather than never.
+  const expiredAttendee = await attendeeSession(event.id, new Date(Date.now() - 60_000));
+  check('an expired attendee session cannot read media',
+    (await get(`/api/media/${approved.id}`, expiredAttendee)).status === 404);
+  const expiredOrganizer = await organizerSession(
+    `suite-expired-${Date.now()}@example.com`,
+    new Date(Date.now() - 60_000),
+  );
+  check('an expired organizer session is not signed in',
+    [302, 303, 307].includes((await get('/organizer', expiredOrganizer.cookie)).status));
+
   check('a forged session cookie is not a session',
     [302, 303, 307].includes((await get('/organizer', 'eh_organizer=' + randomBytes(32).toString('base64url'))).status));
 
@@ -259,7 +275,7 @@ async function main() {
 
   // Clean up the fixtures this suite created.
   await sql`delete from organizations where id = ${otherOrg.id}`;
-  await sql`delete from organizer_users where email like 'suite-stranger-%'`;
+  await sql`delete from organizer_users where email like 'suite-stranger-%' or email like 'suite-expired-%'`;
 
   console.log(`\n${passed} passed, ${failures.length} failed`);
   if (failures.length) {

@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, gt, isNull, or } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import {
@@ -57,6 +57,9 @@ export async function currentOrganizer(): Promise<OrganizerUser | null> {
       and(
         eq(organizerSessions.tokenHash, hashSessionToken(token, env().SESSION_SECRET)),
         isNull(organizerSessions.revokedAt),
+        // Enforced here rather than trusted to the cookie's Max-Age: this
+        // session can moderate and reconfigure an event.
+        or(isNull(organizerSessions.expiresAt), gt(organizerSessions.expiresAt, new Date())),
       ),
     )
     .limit(1);
@@ -123,7 +126,11 @@ export async function startOrganizerSession(userId: string): Promise<void> {
   const token = mintSessionToken();
   await db()
     .insert(organizerSessions)
-    .values({ userId, tokenHash: hashSessionToken(token, env().SESSION_SECRET) });
+    .values({
+      userId,
+      tokenHash: hashSessionToken(token, env().SESSION_SECRET),
+      expiresAt: new Date(Date.now() + ORGANIZER_MAX_AGE_SECONDS * 1000),
+    });
 
   const jar = await cookies();
   jar.set(

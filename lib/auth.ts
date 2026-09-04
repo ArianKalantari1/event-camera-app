@@ -1,11 +1,12 @@
 import 'server-only';
 import { cookies, headers } from 'next/headers';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, gt, isNull, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { eventSessions, events, type Event, type EventSession } from '@/lib/db/schema';
 import { env } from '@/lib/env';
 import {
   SESSION_COOKIE,
+  SESSION_MAX_AGE_SECONDS,
   hashSessionToken,
   mintSessionToken,
   sessionCookieOptions,
@@ -35,7 +36,15 @@ export async function currentSession(): Promise<AttendeeSession | null> {
     .select({ session: eventSessions, event: events })
     .from(eventSessions)
     .innerJoin(events, eq(events.id, eventSessions.eventId))
-    .where(and(eq(eventSessions.tokenHash, tokenHash), isNull(eventSessions.revokedAt)))
+    .where(
+      and(
+        eq(eventSessions.tokenHash, tokenHash),
+        isNull(eventSessions.revokedAt),
+        // Rows predating this column have a null expiry and stay valid; every
+        // session minted since carries one and is checked against the clock.
+        or(isNull(eventSessions.expiresAt), gt(eventSessions.expiresAt, new Date())),
+      ),
+    )
     .limit(1);
 
   return row ?? null;
@@ -51,7 +60,14 @@ export async function startSession(eventId: string): Promise<EventSession> {
   const token = mintSessionToken();
   const tokenHash = hashSessionToken(token, env().SESSION_SECRET);
 
-  const [session] = await db().insert(eventSessions).values({ eventId, tokenHash }).returning();
+  const [session] = await db()
+    .insert(eventSessions)
+    .values({
+      eventId,
+      tokenHash,
+      expiresAt: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000),
+    })
+    .returning();
 
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, sessionCookieOptions(env().APP_URL.startsWith('https://')));
