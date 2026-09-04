@@ -19,7 +19,7 @@ import { hashSessionToken, mintSessionToken, LOGIN_TOKEN_TTL_MS } from '../lib/d
 import { hashCode } from '../lib/domain/codes';
 import { derivedKey, originalKey } from '../lib/storage/keys';
 import { placeholderImage } from './png';
-import { mostRecentLocalHour } from './zoned-time';
+import { mostRecentLocalHour } from '../lib/domain/zoned-time';
 
 /**
  * Creates the demo event.
