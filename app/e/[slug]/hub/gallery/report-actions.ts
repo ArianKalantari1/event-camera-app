@@ -7,6 +7,7 @@ import { clientKey, sessionForEvent } from '@/lib/auth';
 import { checkRateLimit, type RateLimitRule } from '@/lib/domain/rate-limit';
 import { eventState } from '@/lib/domain/event-state';
 import { recordAudit } from '@/lib/events';
+import { track } from '@/lib/analytics';
 
 export interface ReportResult {
   ok?: boolean;
@@ -69,6 +70,7 @@ export async function reportMedia(
     detail,
   });
 
+  await track('media.reported', { eventId: row.event.id, sessionId: session.session.id, meta: { reason } });
   await recordAudit({
     eventId: row.event.id,
     actorType: 'attendee',

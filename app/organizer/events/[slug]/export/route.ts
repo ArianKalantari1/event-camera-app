@@ -6,6 +6,7 @@ import { organizerFor } from '@/lib/organizer';
 import { recordAudit } from '@/lib/events';
 import { storage } from '@/lib/storage';
 import { zipStream } from '@/lib/zip';
+import { track } from '@/lib/analytics';
 
 export const runtime = 'nodejs';
 /** Never cached: an export reflects what is approved at the moment it is asked for. */
@@ -61,6 +62,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     };
   });
 
+  await track('export.downloaded', { eventId: context.event.id, meta: { count: rows.length } });
   await recordAudit({
     eventId: context.event.id,
     actorType: 'organizer',

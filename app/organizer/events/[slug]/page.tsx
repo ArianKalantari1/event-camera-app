@@ -9,6 +9,8 @@ import { formatDateRange } from '@/lib/format';
 import { absolute, paths } from '@/lib/routes';
 import { Queue, type QueueItem } from './queue';
 import { Reports, type ReportRow } from './reports';
+import { Funnel } from './funnel';
+import { funnelFor } from '@/lib/analytics';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +66,8 @@ export default async function EventConsole({ params }: Props) {
     createdAt: r.createdAt.toISOString(),
   }));
 
+  const counts = await funnelFor(event.id);
+
   const pending = rows.filter((r) => r.asset.state === 'pending').map(toItem);
   const approved = rows.filter((r) => r.asset.state === 'approved').map(toItem);
   const rejected = rows.filter((r) => r.asset.state === 'rejected').map(toItem);
@@ -109,6 +113,8 @@ export default async function EventConsole({ params }: Props) {
       </section>
 
       <Reports slug={slug} reports={reports} />
+
+      <Funnel counts={counts} />
 
       <section className="stack" style={{ gap: 10 }}>
         <h2 style={{ margin: 0 }}>

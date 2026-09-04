@@ -6,6 +6,7 @@ import { verifyCode } from '@/lib/domain/codes';
 import { CODE_ATTEMPTS, checkRateLimit, resetRateLimit } from '@/lib/domain/rate-limit';
 import { findEventBySlug, recordAudit } from '@/lib/events';
 import { paths } from '@/lib/routes';
+import { track } from '@/lib/analytics';
 
 export interface GateResult {
   error: string;
@@ -39,6 +40,8 @@ export async function enterEvent(_prev: GateResult | null, formData: FormData): 
 
   if (!code.trim()) return { error: 'Enter the event code.' };
 
+  await track('gate.attempt', { eventId: loaded.event.id });
+
   if (!(await verifyCode(code, loaded.event.codeHash))) {
     await recordAudit({
       eventId: loaded.event.id,
@@ -59,6 +62,7 @@ export async function enterEvent(_prev: GateResult | null, formData: FormData): 
   resetRateLimit(await clientKey(`gate:${slug}`));
 
   const session = await startSession(loaded.event.id);
+  await track('gate.success', { eventId: loaded.event.id, sessionId: session.id });
   await recordAudit({
     eventId: loaded.event.id,
     actorType: 'attendee',

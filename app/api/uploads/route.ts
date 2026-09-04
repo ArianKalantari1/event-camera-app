@@ -7,6 +7,7 @@ import { sessionForEvent } from '@/lib/auth';
 import { findEventBySlug, recordAudit } from '@/lib/events';
 import { checkRateLimit, type RateLimitRule } from '@/lib/domain/rate-limit';
 import { storage, ACCEPTED_MIME, MAX_UPLOAD_BYTES, originalKey, derivedKey } from '@/lib/storage';
+import { track } from '@/lib/analytics';
 
 export const runtime = 'nodejs';
 
@@ -87,6 +88,7 @@ export async function POST(req: Request) {
     driver.presignUpload(thumbKey, 'image/jpeg'),
   ]);
 
+  await track('upload.started', { eventId: loaded.event.id, sessionId: session.session.id });
   await recordAudit({
     eventId: loaded.event.id,
     actorType: 'attendee',
