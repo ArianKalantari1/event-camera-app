@@ -34,6 +34,12 @@ npm run job:retention -- --dry-run   # what retention would delete
 npm run job:retention                # warn, then delete what is due
 ```
 
+`npm run test:security` runs an authorization suite against a running server and
+a seeded database — 47 checks covering media access, cross-event isolation,
+organizer membership, magic-link replay, storage key handling and resource
+scoping. It needs `npm run dev` and `npm run db:seed` first, and it mutates the
+seeded event as it goes, so point it at a development database.
+
 `db:seed` prints the attendee link, the event code, and a ready-to-use organizer
 sign-in link. With `MAIL_DRIVER=console` — the default — every later sign-in link
 is printed to the server log too, so nothing here needs a mail provider until you
