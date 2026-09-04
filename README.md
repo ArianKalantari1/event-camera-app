@@ -29,6 +29,9 @@ npm run db:generate   # write a migration from the schema
 npm run db:migrate    # apply migrations
 npm run db:seed       # create the demo event and an organizer account
 npm run check         # typecheck + lint + tests
+
+npm run job:retention -- --dry-run   # what retention would delete
+npm run job:retention                # warn, then delete what is due
 ```
 
 `db:seed` prints the attendee link, the event code, and a ready-to-use organizer
@@ -58,6 +61,12 @@ docs/               PRD and reference notes
 **The event URL is swappable.** The origin lives in `APP_URL` and the path shape in
 `lib/routes.ts`. It ends up printed on QR posters, so it is the most expensive string
 here to change — nothing else should construct one.
+
+**Retention deletes for real.** `job:retention` warns owners a week ahead, then
+deletes originals and derivatives once the date passes. It is safe to run twice
+or concurrently — both phases claim their work with a conditional update — and
+`--dry-run` changes nothing and sends no mail. The audit row is written before
+the rows it counts are deleted, so the record of a deletion outlives it.
 
 **Access is derived, never stored.** Whether an event accepts uploads or shows its
 gallery is a pure function of the row and the current time. Scheduled jobs write

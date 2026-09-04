@@ -193,6 +193,14 @@ export const events = pgTable(
     publishedAt: timestamp('published_at', { withTimezone: true }),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
 
+    /**
+     * Retention job markers. Both are set by conditional updates, which is what
+     * makes the job idempotent: a re-run after a crash finds them already set
+     * and does nothing, rather than warning twice or attempting a second purge.
+     */
+    retentionWarnedAt: timestamp('retention_warned_at', { withTimezone: true }),
+    purgedAt: timestamp('purged_at', { withTimezone: true }),
+
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(now),
   },

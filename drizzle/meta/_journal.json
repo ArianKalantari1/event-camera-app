@@ -15,6 +15,13 @@
       "when": 1788503423107,
       "tag": "0001_friendly_whistler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788504671225,
+      "tag": "0002_mighty_sumo",
+      "breakpoints": true
     }
   ]
 }
