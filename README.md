@@ -68,6 +68,13 @@ docs/               PRD and reference notes
 `lib/routes.ts`. It ends up printed on QR posters, so it is the most expensive string
 here to change — nothing else should construct one.
 
+**The reviewed image is the served image.** A browser uploads one file, to a
+prefix nothing serves. Completion decodes it, copies it to a key that was never
+presigned, and derives the thumbnail from those same bytes. That ordering is
+what makes "reviewed before anyone sees it" true: a client cannot supply the
+thumbnail a moderator judges independently of the picture attendees get, and a
+still-valid signed URL cannot be replayed over an approved photo.
+
 **Retention deletes for real.** `job:retention` warns owners a week ahead, then
 deletes originals and derivatives once the date passes. It is safe to run twice
 or concurrently — both phases claim their work with a conditional update — and

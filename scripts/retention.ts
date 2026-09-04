@@ -17,7 +17,7 @@ async function main() {
 
   if (dryRun) console.log('DRY RUN — nothing was changed and no mail was sent.\n');
 
-  if (report.warned.length === 0 && report.purged.length === 0) {
+  if (report.warned.length === 0 && report.purged.length === 0 && report.abandoned === 0) {
     console.log('Nothing due.');
   }
 
@@ -26,6 +26,9 @@ async function main() {
   }
   for (const p of report.purged) {
     console.log(`purge  ${p.slug}  ${p.title}  -> ${p.mediaRows} media rows, ${p.objects} objects`);
+  }
+  if (report.abandoned > 0) {
+    console.log(`sweep  ${report.abandoned} abandoned upload reservation(s)`);
   }
 
   process.exit(0);

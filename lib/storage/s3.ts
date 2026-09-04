@@ -44,7 +44,7 @@ export class S3Storage implements StorageDriver {
     });
   }
 
-  async presignUpload(key: string, contentType: string, expiresInSeconds = 900): Promise<PresignedUpload> {
+  async presignUpload(key: string, contentType: string, expiresInSeconds = 300): Promise<PresignedUpload> {
     assertValidKey(key);
     const url = await getSignedUrl(
       this.client,

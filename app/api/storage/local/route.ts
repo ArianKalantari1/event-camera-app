@@ -67,6 +67,7 @@ export async function GET(req: Request) {
       'content-type': 'image/jpeg',
       // Private: the URL is short-lived and scoped to one viewer's authorization.
       'cache-control': 'private, max-age=300',
+      'x-content-type-options': 'nosniff',
     },
   });
 }

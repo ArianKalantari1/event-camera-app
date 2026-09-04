@@ -32,7 +32,7 @@ export class LocalStorage implements StorageDriver {
     return full;
   }
 
-  async presignUpload(key: string, contentType: string, expiresInSeconds = 900): Promise<PresignedUpload> {
+  async presignUpload(key: string, contentType: string, expiresInSeconds = 300): Promise<PresignedUpload> {
     assertValidKey(key);
     const expires = Date.now() + expiresInSeconds * 1000;
     const sig = signLocal(this.secret, 'PUT', key, expires);

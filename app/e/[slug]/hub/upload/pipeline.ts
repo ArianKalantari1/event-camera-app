@@ -2,23 +2,21 @@
  * Client-side image pipeline, carried over from spike/upload.
  *
  * Verified there against a real browser: decode with EXIF orientation applied,
- * downscale, re-encode to JPEG. The two sizes are produced in one decode — the
- * expensive part is decoding a 12-megapixel photo, not drawing it twice.
+ * downscale, re-encode to JPEG.
+ *
+ * This produces the display image only. It used to produce the thumbnail too,
+ * and that was a security defect: the thumbnail a moderator reviewed and the
+ * image attendees were served were two independent uploads. The server now
+ * derives the thumbnail from the bytes it received, so this is purely a
+ * bandwidth optimisation — the upload is smaller, and nothing about what gets
+ * published depends on the client being honest.
  */
 
 export const DISPLAY_MAX_DIM = 2048;
-/**
- * 384px, not 512. The grid never renders a tile wider than about 120 CSS px, so
- * 384 still covers a 3x display with room to spare, and the smaller edge is
- * roughly a third fewer bytes on a page that requests forty of these.
- */
-export const THUMB_MAX_DIM = 384;
 export const DISPLAY_QUALITY = 0.82;
-export const THUMB_QUALITY = 0.68;
 
 export interface Processed {
   display: Blob;
-  thumb: Blob;
   width: number;
   height: number;
 }
@@ -87,8 +85,7 @@ export async function processImage(file: File): Promise<Processed> {
   const src = await decode(file);
   try {
     const display = await render(src, DISPLAY_MAX_DIM, DISPLAY_QUALITY);
-    const thumb = await render(src, THUMB_MAX_DIM, THUMB_QUALITY);
-    return { display: display.blob, thumb: thumb.blob, width: display.w, height: display.h };
+    return { display: display.blob, width: display.w, height: display.h };
   } finally {
     if ('close' in src) src.close();
   }
