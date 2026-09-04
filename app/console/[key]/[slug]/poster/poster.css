@@ -1,0 +1,110 @@
+/*
+ * Poster styling. Committed to paper, so it does not follow the viewer's theme:
+ * black on white is what a scanner wants and what a printer produces.
+ */
+
+.controls {
+  max-width: 640px;
+  margin: 24px auto;
+  padding: 0 16px;
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink-2);
+}
+.controls .btn { margin-top: 8px; }
+
+.poster {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto 40px;
+  padding: 22mm 18mm;
+  background: #fff;
+  color: #101010;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6mm;
+  box-shadow: 0 8px 40px -16px rgba(0, 0, 0, 0.4);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.poster .kicker {
+  margin: 0;
+  font-size: 6mm;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #5a5a5a;
+}
+
+.poster h1 {
+  margin: 0;
+  font-size: 15mm;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.poster .when { margin: 0; font-size: 5.5mm; color: #444; }
+
+/* The quiet zone is inside the SVG, so the frame adds only physical margin. */
+.qr-frame {
+  width: 118mm;
+  padding: 4mm;
+  background: #fff;
+  border: 0.6mm solid #101010;
+  border-radius: 3mm;
+}
+.qr-frame svg { display: block; width: 100%; height: auto; }
+
+.poster .url {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 6mm;
+  letter-spacing: 0.02em;
+}
+
+.poster .steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: 3mm;
+  font-size: 5.5mm;
+}
+.poster .steps li { counter-increment: step; }
+.poster .steps li::before {
+  content: counter(step);
+  display: inline-grid;
+  place-items: center;
+  width: 8mm;
+  height: 8mm;
+  margin-right: 3mm;
+  border-radius: 50%;
+  background: #101010;
+  color: #fff;
+  font-size: 4.5mm;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.poster .foot {
+  margin: auto 0 0;
+  font-size: 4.2mm;
+  color: #5a5a5a;
+  max-width: 130mm;
+}
+
+@media print {
+  @page { size: A4; margin: 0; }
+  .no-print { display: none !important; }
+  body { background: #fff; margin: 0; }
+  .poster {
+    margin: 0;
+    box-shadow: none;
+    /* Without this the numbered step markers print as empty circles. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
