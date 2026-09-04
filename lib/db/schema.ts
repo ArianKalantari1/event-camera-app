@@ -329,6 +329,33 @@ export const mediaReports = pgTable(
   ],
 );
 
+/**
+ * Product analytics.
+ *
+ * Deliberately its own table rather than a third-party pixel. The numbers the
+ * plan asks for are all first-party funnel counts, no vendor is needed to add
+ * them up, and not sending attendee behaviour to someone else is the easiest
+ * privacy promise there is to keep.
+ *
+ * Pseudonymous by construction: a session id and nothing else. No address, no
+ * user agent, no fingerprint. A session cannot be traced to a person without
+ * the cookie that created it.
+ */
+export const analyticsEvents = pgTable(
+  'analytics_events',
+  {
+    id: uuid('id').primaryKey().default(newId),
+    eventId: uuid('event_id').references(() => events.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    sessionId: uuid('session_id').references(() => eventSessions.id, { onDelete: 'set null' }),
+    meta: jsonb('meta'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    index('analytics_events_event_name_idx').on(t.eventId, t.name, t.createdAt),
+  ],
+);
+
 export const auditEvents = pgTable(
   'audit_events',
   {
@@ -357,3 +384,4 @@ export type OrganizerSession = typeof organizerSessions.$inferSelect;
 export type OrgRole = (typeof orgRole.enumValues)[number];
 export type MediaReport = typeof mediaReports.$inferSelect;
 export type ReportReason = (typeof reportReason.enumValues)[number];
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;

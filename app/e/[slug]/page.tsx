@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { findEventBySlug, listResources, scopesFor } from '@/lib/events';
 import { formatDateRange } from '@/lib/format';
 import { paths } from '@/lib/routes';
+import { track } from '@/lib/analytics';
 
 /**
  * The public promotional page.
@@ -40,6 +41,7 @@ export default async function PublicEventPage({ params }: Props) {
 
   const { event, state } = loaded;
   const resources = await listResources(event.id, scopesFor('public'));
+  await track('public_page.view', { eventId: event.id });
 
   return (
     <main className="page stack">

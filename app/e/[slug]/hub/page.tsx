@@ -6,6 +6,7 @@ import { listApprovedMedia } from '@/lib/media';
 import { formatDateRange, formatDay, formatRemaining, formatTime } from '@/lib/format';
 import { paths } from '@/lib/routes';
 import { explainClosed } from '@/lib/domain/event-state';
+import { track } from '@/lib/analytics';
 import { GalleryGrid } from './gallery/grid';
 
 interface Props {
@@ -39,6 +40,8 @@ export default async function HubPage({ params }: Props) {
   const schedule = resources.filter((r) => r.kind === 'schedule');
   const links = resources.filter((r) => r.kind === 'action' || r.kind === 'resource');
   const notes = resources.filter((r) => r.kind === 'note');
+
+  await track('hub.view', { eventId: event.id, sessionId: session.session.id });
 
   const media = state.galleryOpen ? await listApprovedMedia(event.id, 12) : [];
   const uploadsLeft = state.uploadsCloseAt ? formatRemaining(state.uploadsCloseAt) : null;

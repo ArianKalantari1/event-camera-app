@@ -6,6 +6,7 @@ import { listApprovedMedia } from '@/lib/media';
 import { formatRemaining } from '@/lib/format';
 import { paths } from '@/lib/routes';
 import { explainClosed } from '@/lib/domain/event-state';
+import { track } from '@/lib/analytics';
 import { GalleryGrid } from './grid';
 
 interface Props {
@@ -21,6 +22,8 @@ export default async function GalleryPage({ params }: Props) {
   if (!session) redirect(paths.eventGate(slug));
 
   const { event, state } = loaded;
+  await track('gallery.view', { eventId: event.id, sessionId: session.session.id });
+
   const media = state.galleryOpen ? await listApprovedMedia(event.id) : [];
   const left = state.galleryCloseAt ? formatRemaining(state.galleryCloseAt) : null;
 

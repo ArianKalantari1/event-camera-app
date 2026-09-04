@@ -6,6 +6,7 @@ import { sessionForEvent } from '@/lib/auth';
 import { recordAudit } from '@/lib/events';
 import { eventState } from '@/lib/domain/event-state';
 import { storage, MAX_UPLOAD_BYTES, derivedKey } from '@/lib/storage';
+import { track } from '@/lib/analytics';
 
 export const runtime = 'nodejs';
 
@@ -74,6 +75,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ ok: true, state: row.asset.state, alreadyCompleted: true });
   }
 
+  await track('upload.completed', {
+    eventId: row.event.id,
+    sessionId: session.session.id,
+    meta: { bytes: head.bytes },
+  });
   await recordAudit({
     eventId: row.event.id,
     actorType: 'attendee',

@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { mediaAssets, mediaReports } from '@/lib/db/schema';
 import { organizerFor } from '@/lib/organizer';
 import { recordAudit } from '@/lib/events';
+import { track } from '@/lib/analytics';
 
 export type Decision = 'approve' | 'reject' | 'remove';
 
@@ -64,6 +65,9 @@ export async function moderate(
     .returning({ id: mediaAssets.id });
 
   if (updated.length !== 1) return { ok: false, message: 'Someone else already handled that one.' };
+
+  if (decision === 'approve') await track('moderation.approved', { eventId: context.event.id });
+  if (decision === 'reject') await track('moderation.rejected', { eventId: context.event.id });
 
   await recordAudit({
     eventId: context.event.id,
