@@ -17,6 +17,13 @@ interface Item {
 export function Uploader({ slug }: { slug: string }) {
   const [items, setItems] = useState<Item[]>([]);
   const [consent, setConsent] = useState(false);
+  /*
+   * Announcements are separate state from `items` and live in a region that is
+   * always in the DOM. An aria-live region has to exist BEFORE its content
+   * changes, so putting it inside the conditionally-rendered list would mean the
+   * first upload — the one that matters most — is never announced.
+   */
+  const [announcement, setAnnouncement] = useState('');
   const nextKey = useRef(0);
   // Serial: decoding several 12-megapixel photos at once gets the tab killed
   // for memory on iOS. This is the queue, not a nicety.
@@ -78,8 +85,13 @@ export function Uploader({ slug }: { slug: string }) {
       }
 
       patch(key, { status: 'done', progress: 1, message: undefined });
+      setAnnouncement(`${file.name} sent. Waiting for an organizer to approve it.`);
     } catch (err) {
-      patch(key, { status: 'failed', message: (err as Error).message });
+      const reason = (err as Error).message;
+      patch(key, { status: 'failed', message: reason });
+      // Terminal states only. Announcing every percentage tick would make the
+      // page unusable with a screen reader running.
+      setAnnouncement(`${file.name} failed: ${reason}`);
     }
   }
 
@@ -101,21 +113,33 @@ export function Uploader({ slug }: { slug: string }) {
           type="checkbox"
           checked={consent}
           onChange={(e) => setConsent(e.target.checked)}
-          style={{ width: 20, height: 20, marginTop: 2, flex: '0 0 auto' }}
+          style={{ width: 24, height: 24, marginTop: 2, flex: '0 0 auto' }}
         />
-        <span style={{ fontSize: 14 }}>
+        <span id="consent-text" style={{ fontSize: 14 }}>
           I took these photos, or I have permission to share them. The organizers may use approved
           photos in the event recap. I can ask for anything of mine to be removed.
         </span>
       </label>
 
-      <label className="btn" style={{ opacity: consent ? 1 : 0.5, cursor: consent ? 'pointer' : 'not-allowed' }}>
+      {/*
+        The input is visually hidden, NOT `hidden`. The hidden attribute is
+        display:none, which removes it from the accessibility tree and the tab
+        order — leaving a <label> that is not focusable and has no role, so the
+        only way to upload was a mouse or a touchscreen.
+      */}
+      <label
+        className="btn"
+        htmlFor="photo-input"
+        style={{ opacity: consent ? 1 : 0.5, cursor: consent ? 'pointer' : 'not-allowed' }}
+      >
         <input
+          id="photo-input"
+          className="visually-hidden"
           type="file"
           accept="image/*"
           multiple
           disabled={!consent}
-          hidden
+          aria-describedby="consent-text"
           onChange={(e) => {
             if (e.target.files) handleFiles(e.target.files);
             e.target.value = '';
@@ -124,8 +148,17 @@ export function Uploader({ slug }: { slug: string }) {
         Choose photos
       </label>
 
+      <div role="status" aria-live="polite" className="visually-hidden">
+        {announcement}
+      </div>
+
       {items.length > 0 ? (
-        <ul className="stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 10 }}>
+        <ul
+          role="list"
+          aria-label="Photos you are adding"
+          className="stack"
+          style={{ listStyle: 'none', margin: 0, padding: 0, gap: 10 }}
+        >
           {items.map((item) => (
             <li key={item.key} className="card" style={{ display: 'flex', gap: 12 }}>
               <div
@@ -176,14 +209,21 @@ export function Uploader({ slug }: { slug: string }) {
                 </p>
                 {item.status === 'uploading' ? (
                   <div
-                    style={{ height: 4, background: 'var(--line-2)', borderRadius: 2, marginTop: 8 }}
+                    className="progress-track"
+                    role="progressbar"
+                    aria-label={`Uploading ${item.name}`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(item.progress * 100)}
+                    style={{ height: 6, background: 'var(--line-2)', borderRadius: 3, marginTop: 8 }}
                   >
                     <div
+                      className="progress-fill"
                       style={{
                         height: '100%',
                         width: `${Math.round(item.progress * 100)}%`,
                         background: 'var(--accent)',
-                        borderRadius: 2,
+                        borderRadius: 3,
                         transition: 'width .15s',
                       }}
                     />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import { enterEvent, type GateResult } from './actions';
 
@@ -15,6 +15,20 @@ function Submit() {
 
 export function CodeForm({ slug }: { slug: string }) {
   const [result, action] = useActionState<GateResult | null, FormData>(enterEvent, null);
+  const input = useRef<HTMLInputElement | null>(null);
+
+  /*
+   * After a wrong code, focus is on the submit button and autoFocus does not
+   * fire again. Attempts here are limited, so put the person back in the field
+   * with the error already associated with it rather than making them navigate
+   * up to find out what went wrong.
+   */
+  useEffect(() => {
+    if (result?.error) {
+      input.current?.focus();
+      input.current?.select();
+    }
+  }, [result]);
 
   return (
     <form action={action} className="stack" style={{ gap: 12 }}>
@@ -22,6 +36,7 @@ export function CodeForm({ slug }: { slug: string }) {
       <label className="stack" style={{ gap: 6 }}>
         <span className="label">Event code</span>
         <input
+          ref={input}
           name="code"
           /*
            * text, not a numeric mode: the code alphabet is alphanumeric, and a

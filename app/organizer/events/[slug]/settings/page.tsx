@@ -38,6 +38,12 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
+export async function generateMetadata({ params }: Props) {
+  const { slug } = await params;
+  const context = await organizerFor(slug);
+  return { title: context ? `Settings — ${context.event.title}` : 'Not found' };
+}
+
 export default async function SettingsPage({ params }: Props) {
   const { slug } = await params;
   if (!(await currentOrganizer())) redirect('/organizer/login');

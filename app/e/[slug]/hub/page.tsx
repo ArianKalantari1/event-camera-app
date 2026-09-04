@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { sessionForEvent } from '@/lib/auth';
 import { findEventBySlug, listResources, scopesFor } from '@/lib/events';
@@ -11,6 +12,17 @@ import { GalleryGrid } from './gallery/grid';
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+/*
+ * Every route used to inherit "Event hub" from the root layout, so a screen
+ * reader announced the same title on arrival at the gate, the hub, the gallery
+ * and the upload screen — no confirmation that the navigation worked.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const loaded = await findEventBySlug(slug);
+  return { title: loaded ? `${loaded.event.title} hub` : 'Event not found' };
 }
 
 type ScheduleItem = { id: string; label: string; detail: string | null; startsAt: Date | null };
@@ -80,7 +92,7 @@ export default async function HubPage({ params }: Props) {
 
       <section className="stack" style={{ gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-          <p className="label" style={{ margin: 0 }}>Community gallery</p>
+          <h2 className="label">Community gallery</h2>
           {state.galleryOpen && media.length > 0 ? (
             <Link href={paths.eventGallery(slug)} style={{ fontSize: 14 }}>See all</Link>
           ) : null}
@@ -93,22 +105,28 @@ export default async function HubPage({ params }: Props) {
             Nothing approved yet. Photos appear here once an organizer has reviewed them.
           </p>
         ) : (
-          <GalleryGrid slug={slug} items={media.map((m) => ({ id: m.id, width: m.width, height: m.height }))} />
+          <GalleryGrid
+            slug={slug}
+            items={media.map((m) => ({
+              id: m.id,
+              width: m.width,
+              height: m.height,
+              addedAt: formatTime(m.createdAt, event.timezone),
+            }))}
+          />
         )}
       </section>
 
       {schedule.length > 0 ? (
         <section className="stack" style={{ gap: 8 }}>
-          <p className="label" style={{ margin: 0 }}>Schedule</p>
+          <h2 className="label">Schedule</h2>
           {/*
             Grouped by local day. A hackathon runs past midnight, and a flat
             list of 12-hour times reads as though it goes backwards there.
           */}
           {groupByDay(schedule, event.timezone).map((group) => (
             <div key={group.day} className="card stack" style={{ gap: 10 }}>
-              {group.day ? (
-                <p className="label" style={{ margin: 0 }}>{group.day}</p>
-              ) : null}
+              {group.day ? <h3 className="label">{group.day}</h3> : null}
               {group.items.map((s) => (
                 <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '76px 1fr', gap: 12 }}>
                   <span className="muted" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 14 }}>
@@ -127,7 +145,7 @@ export default async function HubPage({ params }: Props) {
 
       {links.length > 0 ? (
         <section className="stack" style={{ gap: 8 }}>
-          <p className="label" style={{ margin: 0 }}>Links</p>
+          <h2 className="label">Links</h2>
           {links.map((r) => (
             <a key={r.id} className="card" href={r.url ?? '#'} rel="noopener noreferrer" target="_blank">
               <strong>{r.label}</strong>
@@ -139,7 +157,7 @@ export default async function HubPage({ params }: Props) {
 
       {notes.map((n) => (
         <section key={n.id} className="card">
-          <p className="label" style={{ margin: '0 0 4px' }}>{n.label}</p>
+          <h2 className="label" style={{ marginBottom: 4 }}>{n.label}</h2>
           <p style={{ margin: 0 }}>{n.detail}</p>
         </section>
       ))}

@@ -6,6 +6,8 @@ import { eventState } from '@/lib/domain/event-state';
 
 export const dynamic = 'force-dynamic';
 
+export const metadata = { title: 'Your events' };
+
 export default async function OrganizerHome() {
   const user = await currentOrganizer();
   if (!user) redirect('/organizer/login');

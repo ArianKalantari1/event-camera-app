@@ -6,6 +6,8 @@ import { NewEventForm, type Defaults } from './form';
 
 export const dynamic = 'force-dynamic';
 
+export const metadata = { title: 'New event' };
+
 /**
  * A shortlist rather than the full IANA database. Intl exposes several hundred
  * zones, and a select of that size is worse than a short list plus whatever the

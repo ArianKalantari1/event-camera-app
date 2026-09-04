@@ -1,9 +1,10 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { sessionForEvent } from '@/lib/auth';
 import { findEventBySlug } from '@/lib/events';
 import { listApprovedMedia } from '@/lib/media';
-import { formatRemaining } from '@/lib/format';
+import { formatRemaining, formatTime } from '@/lib/format';
 import { paths } from '@/lib/routes';
 import { explainClosed } from '@/lib/domain/event-state';
 import { track } from '@/lib/analytics';
@@ -11,6 +12,17 @@ import { GalleryGrid } from './grid';
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+/*
+ * Every route used to inherit "Event hub" from the root layout, so a screen
+ * reader announced the same title on arrival at the gate, the hub, the gallery
+ * and the upload screen — no confirmation that the navigation worked.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const loaded = await findEventBySlug(slug);
+  return { title: loaded ? `Community gallery — ${loaded.event.title}` : 'Event not found' };
 }
 
 export default async function GalleryPage({ params }: Props) {
@@ -49,7 +61,12 @@ export default async function GalleryPage({ params }: Props) {
           ) : (
             <GalleryGrid
               slug={slug}
-              items={media.map((m) => ({ id: m.id, width: m.width, height: m.height }))}
+              items={media.map((m) => ({
+                id: m.id,
+                width: m.width,
+                height: m.height,
+                addedAt: formatTime(m.createdAt, event.timezone),
+              }))}
             />
           )}
         </>

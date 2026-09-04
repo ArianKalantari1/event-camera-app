@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState, useTransition } from 'react';
+import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 import {
   addResource,
@@ -202,6 +202,13 @@ export function CodePanel({ slug }: { slug: string }) {
   const [pending, start] = useTransition();
   const [result, setResult] = useState<SettingsResult | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const shown = useRef<HTMLDivElement | null>(null);
+
+  // The value is displayed once and the old code has already stopped working,
+  // so it must be announced — and the button that had focus has been unmounted.
+  useEffect(() => {
+    if (result?.code) shown.current?.focus();
+  }, [result?.code]);
 
   return (
     <div className="card stack" style={{ gap: 10 }}>
@@ -209,11 +216,13 @@ export function CodePanel({ slug }: { slug: string }) {
       <Errors result={result} />
 
       {result?.code ? (
-        <>
+        <div ref={shown} tabIndex={-1} role="status" className="stack" style={{ gap: 8 }}>
           <p className="muted" style={{ margin: 0, fontSize: 14 }}>
             Shown once. Only its hash is stored, so it cannot be looked up later.
           </p>
           <p
+            /* Spelled out for speech: D and Q, and 4 and A, are easy to mishear. */
+            aria-label={`New event code: ${result.code.split('').join(' ')}`}
             style={{
               margin: 0,
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -221,14 +230,14 @@ export function CodePanel({ slug }: { slug: string }) {
               letterSpacing: '0.16em',
               textAlign: 'center',
               padding: '14px 8px',
-              border: '1px solid var(--line)',
+              border: '1px solid var(--line-strong)',
               borderRadius: 10,
               background: 'var(--surface-2)',
             }}
           >
             {result.code}
           </p>
-        </>
+        </div>
       ) : (
         <p className="muted" style={{ margin: 0, fontSize: 14 }}>
           Stored hashed and never shown again. Rotating issues a new one; the old one stops working

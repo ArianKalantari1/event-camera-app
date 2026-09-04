@@ -6,6 +6,8 @@ interface Props {
   searchParams: Promise<{ expired?: string }>;
 }
 
+export const metadata = { title: 'Organizer sign in' };
+
 export default async function LoginPage({ searchParams }: Props) {
   if (await currentOrganizer()) redirect('/organizer');
 

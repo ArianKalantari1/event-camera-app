@@ -60,7 +60,7 @@ export default async function PublicEventPage({ params }: Props) {
 
       {resources.length > 0 ? (
         <section className="stack" style={{ gap: 8 }}>
-          <p className="label">Links</p>
+          <h2 className="label">Links</h2>
           {resources.map((r) =>
             r.url ? (
               <a key={r.id} className="card" href={r.url} rel="noopener noreferrer" target="_blank">
