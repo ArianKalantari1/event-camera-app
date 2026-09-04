@@ -67,6 +67,23 @@ export const mediaState = pgEnum('media_state', [
 export const actorType = pgEnum('actor_type', ['organizer', 'attendee', 'system']);
 
 /**
+ * Why someone asked for a photo to come down.
+ *
+ * `in_photo` is first because it is the one this pathway exists for. An event
+ * gallery contains people who never chose to be photographed, and the only
+ * honest answer to that is a route to removal that does not require an account,
+ * an explanation, or the organizer's attention to find.
+ */
+export const reportReason = pgEnum('report_reason', [
+  'in_photo',
+  'inappropriate',
+  'wrong_event',
+  'other',
+]);
+
+export const reportState = pgEnum('report_state', ['open', 'actioned', 'dismissed']);
+
+/**
  * Organization roles.
  *
  * `owner` can change the event and its access; `moderator` can only act on
@@ -287,6 +304,31 @@ export const mediaAssets = pgTable(
   ],
 );
 
+export const mediaReports = pgTable(
+  'media_reports',
+  {
+    id: uuid('id').primaryKey().default(newId),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    mediaId: uuid('media_id')
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: 'cascade' }),
+    /** Null when the reporter had no session — reporting must not require one. */
+    sessionId: uuid('session_id').references(() => eventSessions.id, { onDelete: 'set null' }),
+    reason: reportReason('reason').notNull(),
+    detail: text('detail'),
+    state: reportState('state').notNull().default('open'),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolvedBy: text('resolved_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    index('media_reports_event_state_idx').on(t.eventId, t.state, t.createdAt),
+    index('media_reports_media_idx').on(t.mediaId),
+  ],
+);
+
 export const auditEvents = pgTable(
   'audit_events',
   {
@@ -313,3 +355,5 @@ export type OrganizerUser = typeof organizerUsers.$inferSelect;
 export type OrganizationMember = typeof organizationMembers.$inferSelect;
 export type OrganizerSession = typeof organizerSessions.$inferSelect;
 export type OrgRole = (typeof orgRole.enumValues)[number];
+export type MediaReport = typeof mediaReports.$inferSelect;
+export type ReportReason = (typeof reportReason.enumValues)[number];

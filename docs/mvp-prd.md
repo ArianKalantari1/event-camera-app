@@ -18,10 +18,11 @@ hub, gallery and gated media · client-side image pipeline with EXIF-safe
 downscale, retry and a browser-generated thumbnail · moderation queue with an
 audit trail · printable QR poster and venue screen · magic-link organizer
 sign-in with per-event membership · self-service event creation, settings and
-code rotation · retention warning and deletion job · seed with a demo event.
+code rotation · retention warning and deletion job · bulk export of approved originals as a
+streamed zip · attendee removal requests with an organizer queue · seed with a
+demo event.
 
-**Not built.** Bulk export of approved originals · analytics events ·
-report-content and removal-request pathway · accessibility audit · deployment.
+**Not built.** Analytics events · accessibility audit · deployment.
 
 **Not verified, and only a real device can.** iOS Safari and Android Chrome.
 Every browser check so far is Chromium. The EXIF-orientation question on a real
