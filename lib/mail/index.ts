@@ -1,4 +1,3 @@
-import 'server-only';
 import { env } from '@/lib/env';
 
 /**
@@ -11,6 +10,11 @@ import { env } from '@/lib/env';
  * The console driver is not a stub for testing — it is how the product runs in
  * development and how a demo runs before anyone has signed up for a mail
  * service. It prints the link to the server log, which is exactly enough.
+ *
+ * Deliberately not marked `server-only`. That marker throws in any plain Node
+ * context, not just in a client bundle, and the retention job sends mail from a
+ * scheduled CLI run. `server-only` belongs on the Next-specific modules that
+ * read cookies and headers, not on shared infrastructure a job also uses.
  */
 
 export interface Message {
