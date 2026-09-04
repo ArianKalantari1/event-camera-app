@@ -27,17 +27,27 @@ on the filesystem under `.storage/`. A Postgres URL is the only thing you must s
 ```bash
 npm run db:generate   # write a migration from the schema
 npm run db:migrate    # apply migrations
-npm run db:seed       # create the demo event
+npm run db:seed       # create the demo event and an organizer account
 npm run check         # typecheck + lint + tests
 ```
+
+`db:seed` prints the attendee link, the event code, and a ready-to-use organizer
+sign-in link. With `MAIL_DRIVER=console` — the default — every later sign-in link
+is printed to the server log too, so nothing here needs a mail provider until you
+deploy somewhere real people sign in.
 
 ## Layout
 
 ```
-app/                Next.js routes: public event page, attendee hub, organizer console
+app/                Next.js routes
+  e/[slug]/         public event page, code gate, attendee hub
+  organizer/        sign-in, event list, moderation console, poster and screen
+  api/              media, uploads, dev storage
 lib/                domain logic, database schema, storage adapter
   env.ts            lazily validated environment
   routes.ts         every URL the product exposes, in one place
+  organizer.ts      organizer sessions and per-event membership
+  mail/             mailer interface; console driver needs no account
 scripts/            migrate and seed
 spike/upload/       standalone upload spike (see its own README)
 docs/               PRD and reference notes

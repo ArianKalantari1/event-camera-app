@@ -4,7 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { mediaAssets } from '@/lib/db/schema';
-import { requireConsoleKey } from '@/lib/console';
+import { organizerFor } from '@/lib/organizer';
 import { recordAudit } from '@/lib/events';
 
 export type Decision = 'approve' | 'reject' | 'remove';
@@ -15,35 +15,37 @@ const TARGET_STATE = {
   remove: 'removed',
 } as const;
 
+/** Anything not removed and not still awaiting its bytes can be acted on. */
+const ACTIONABLE = ['pending', 'approved', 'rejected'] as const;
+
 /**
  * Records a moderation decision.
  *
- * The update is conditional on the states a decision may legally act on, and
- * the affected row count is what proves it happened. Two organizers moderating
- * the same queue on their phones is the normal case at an event, not an edge
- * one — without the condition, a stale page would silently re-approve something
- * the other person just removed.
+ * The action re-resolves the caller's membership itself. A server action is a
+ * public endpoint; that the page which rendered the button checked access
+ * proves nothing about who is calling this.
  *
- * Removal is terminal: a removed photo cannot be brought back from the console.
- * Someone asked for it to be gone.
+ * The update is conditional on the states a decision may legally act on, and
+ * the affected row count is what proves it happened. Two organizers working the
+ * same queue on their phones is the normal case at an event — without the
+ * condition, a stale page would silently re-approve something the other person
+ * just removed.
+ *
+ * Removal is terminal: a removed photo cannot be brought back here, because
+ * somebody asked for it to be gone.
  */
 export async function moderate(
-  consoleKey: string,
+  slug: string,
   assetId: string,
   decision: Decision,
 ): Promise<{ ok: boolean; message?: string }> {
-  // The action re-checks the key itself. A server action is a public endpoint;
-  // that the page which rendered the button checked it proves nothing about
-  // who is calling this.
-  requireConsoleKey(consoleKey);
-
-  // Anything not yet removed, and not still awaiting its bytes, can be acted on.
-  const ACTIONABLE = ['pending', 'approved', 'rejected'] as const;
+  const context = await organizerFor(slug);
+  if (!context) return { ok: false, message: 'You no longer have access to this event.' };
 
   const [asset] = await db()
     .select()
     .from(mediaAssets)
-    .where(eq(mediaAssets.id, assetId))
+    .where(and(eq(mediaAssets.id, assetId), eq(mediaAssets.eventId, context.event.id)))
     .limit(1);
 
   if (!asset) return { ok: false, message: 'That photo no longer exists.' };
@@ -56,24 +58,22 @@ export async function moderate(
     .set({
       state: TARGET_STATE[decision],
       moderatedAt: new Date(),
-      moderatedBy: 'console',
+      moderatedBy: context.user.id,
     })
     .where(and(eq(mediaAssets.id, assetId), inArray(mediaAssets.state, ACTIONABLE)))
     .returning({ id: mediaAssets.id });
 
-  if (updated.length !== 1) {
-    return { ok: false, message: 'Someone else already handled that one.' };
-  }
+  if (updated.length !== 1) return { ok: false, message: 'Someone else already handled that one.' };
 
   await recordAudit({
-    eventId: asset.eventId,
+    eventId: context.event.id,
     actorType: 'organizer',
-    actorId: 'console',
+    actorId: context.user.id,
     action: `moderation.${decision}`,
     target: assetId,
-    meta: { from: asset.state, to: TARGET_STATE[decision] },
+    meta: { from: asset.state, to: TARGET_STATE[decision], by: context.user.email },
   });
 
-  revalidatePath('/console', 'layout');
+  revalidatePath(`/organizer/events/${slug}`);
   return { ok: true };
 }

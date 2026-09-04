@@ -15,6 +15,18 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 export const SESSION_COOKIE = 'eh_session';
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
+/**
+ * Organizer sessions use the same primitive but a separate cookie and a much
+ * shorter life. An organizer session can moderate and reconfigure an event;
+ * an attendee session can look at approved photos. Thirty days is right for
+ * one of those and not the other.
+ */
+export const ORGANIZER_COOKIE = 'eh_organizer';
+export const ORGANIZER_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
+/** Sign-in links are single-use and short-lived; long enough to switch to a mail app. */
+export const LOGIN_TOKEN_TTL_MS = 15 * 60 * 1000;
+
 export function mintSessionToken(): string {
   return randomBytes(32).toString('base64url');
 }
@@ -31,12 +43,12 @@ export function digestsEqual(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
-export function sessionCookieOptions(secure: boolean) {
+export function sessionCookieOptions(secure: boolean, maxAge = SESSION_MAX_AGE_SECONDS) {
   return {
     httpOnly: true,
     sameSite: 'lax' as const,
     secure,
     path: '/',
-    maxAge: SESSION_MAX_AGE_SECONDS,
+    maxAge,
   };
 }

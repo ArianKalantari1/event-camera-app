@@ -1,9 +1,10 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import Link from 'next/link';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { mediaAssets, eventSessions } from '@/lib/db/schema';
-import { isConsoleKey } from '@/lib/console';
-import { findEventBySlug } from '@/lib/events';
+import { currentOrganizer, organizerFor } from '@/lib/organizer';
+import { eventState } from '@/lib/domain/event-state';
 import { formatDateRange } from '@/lib/format';
 import { absolute, paths } from '@/lib/routes';
 import { Queue, type QueueItem } from './queue';
@@ -11,19 +12,22 @@ import { Queue, type QueueItem } from './queue';
 export const dynamic = 'force-dynamic';
 
 interface Props {
-  params: Promise<{ key: string; slug: string }>;
+  params: Promise<{ slug: string }>;
 }
 
-export default async function ConsolePage({ params }: Props) {
-  const { key, slug } = await params;
+export default async function EventConsole({ params }: Props) {
+  const { slug } = await params;
 
-  // A wrong key is a 404, not a 403: a 403 confirms the console exists here.
-  if (!isConsoleKey(key)) notFound();
+  if (!(await currentOrganizer())) redirect('/organizer/login');
 
-  const loaded = await findEventBySlug(slug);
-  if (!loaded) notFound();
+  // Null covers both "no such event" and "not your event", and both answer 404.
+  // Whether an event exists is not something to confirm to someone without
+  // access to it.
+  const context = await organizerFor(slug);
+  if (!context) notFound();
 
-  const { event, state } = loaded;
+  const { event, role } = context;
+  const state = eventState(event);
 
   const rows = await db()
     .select({ asset: mediaAssets, session: eventSessions })
@@ -52,7 +56,7 @@ export default async function ConsolePage({ params }: Props) {
   return (
     <main className="page stack" style={{ maxWidth: 900 }}>
       <header className="stack" style={{ gap: 6 }}>
-        <p className="label">Organizer console</p>
+        <p className="label">Event console · you are {role}</p>
         <h1 style={{ margin: 0 }}>{event.title}</h1>
         <p className="muted" style={{ margin: 0, fontSize: 14 }}>
           {formatDateRange(event.startsAt, event.endsAt, event.timezone)} ·{' '}
@@ -63,12 +67,19 @@ export default async function ConsolePage({ params }: Props) {
 
       <section className="card stack" style={{ gap: 8 }}>
         <p className="label" style={{ margin: 0 }}>Attendee link</p>
-        <code style={{ fontSize: 14, wordBreak: 'break-all' }}>{absolute(paths.event(event.slug))}</code>
+        <code style={{ fontSize: 14, wordBreak: 'break-all' }}>
+          {absolute(paths.event(event.slug))}
+        </code>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <a className="btn secondary" href={`/console/${key}/${event.slug}/poster`}>
+          <Link className="btn secondary" href={`/organizer/events/${event.slug}/poster`}>
             Printable poster
-          </a>
-          <a className="btn secondary" href={`/console/${key}/${event.slug}/screen`} target="_blank" rel="noopener noreferrer">
+          </Link>
+          <a
+            className="btn secondary"
+            href={`/organizer/events/${event.slug}/screen`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Venue screen
           </a>
         </div>
@@ -84,21 +95,19 @@ export default async function ConsolePage({ params }: Props) {
         <p className="muted" style={{ margin: 0, fontSize: 14 }}>
           Nothing here is visible to attendees yet.
         </p>
-        <Queue items={pending} consoleKey={key} />
+        <Queue items={pending} slug={slug} />
       </section>
 
       <section className="stack" style={{ gap: 10 }}>
         <h2 style={{ margin: 0 }}>Approved ({approved.length})</h2>
-        <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-          Live in the attendee gallery now.
-        </p>
-        <Queue items={approved} consoleKey={key} />
+        <p className="muted" style={{ margin: 0, fontSize: 14 }}>Live in the attendee gallery now.</p>
+        <Queue items={approved} slug={slug} />
       </section>
 
       {rejected.length > 0 ? (
         <section className="stack" style={{ gap: 10 }}>
           <h2 style={{ margin: 0 }}>Rejected ({rejected.length})</h2>
-          <Queue items={rejected} consoleKey={key} />
+          <Queue items={rejected} slug={slug} />
         </section>
       ) : null}
     </main>
