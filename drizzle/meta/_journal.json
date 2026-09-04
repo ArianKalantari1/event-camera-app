@@ -22,6 +22,13 @@
       "when": 1788504671225,
       "tag": "0002_mighty_sumo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788505518978,
+      "tag": "0003_calm_rictor",
+      "breakpoints": true
     }
   ]
 }

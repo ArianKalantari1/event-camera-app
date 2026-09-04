@@ -3,7 +3,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { mediaAssets } from '@/lib/db/schema';
+import { mediaAssets, mediaReports } from '@/lib/db/schema';
 import { organizerFor } from '@/lib/organizer';
 import { recordAudit } from '@/lib/events';
 
@@ -72,6 +72,47 @@ export async function moderate(
     action: `moderation.${decision}`,
     target: assetId,
     meta: { from: asset.state, to: TARGET_STATE[decision], by: context.user.email },
+  });
+
+  // A moderation decision answers every open report on that photo. Leaving them
+  // open would make the queue grow with work that is already done.
+  if (decision === 'remove' || decision === 'reject') {
+    await db()
+      .update(mediaReports)
+      .set({ state: 'actioned', resolvedAt: new Date(), resolvedBy: context.user.id })
+      .where(and(eq(mediaReports.mediaId, assetId), eq(mediaReports.state, 'open')));
+  }
+
+  revalidatePath(`/organizer/events/${slug}`);
+  return { ok: true };
+}
+
+/** Marks a report handled without acting on the photo. */
+export async function dismissReport(slug: string, reportId: string): Promise<{ ok: boolean; message?: string }> {
+  const context = await organizerFor(slug);
+  if (!context) return { ok: false, message: 'You no longer have access to this event.' };
+
+  const updated = await db()
+    .update(mediaReports)
+    .set({ state: 'dismissed', resolvedAt: new Date(), resolvedBy: context.user.id })
+    .where(
+      and(
+        eq(mediaReports.id, reportId),
+        eq(mediaReports.eventId, context.event.id),
+        eq(mediaReports.state, 'open'),
+      ),
+    )
+    .returning({ id: mediaReports.id });
+
+  if (updated.length !== 1) return { ok: false, message: 'Someone else already handled that one.' };
+
+  await recordAudit({
+    eventId: context.event.id,
+    actorType: 'organizer',
+    actorId: context.user.id,
+    action: 'report.dismissed',
+    target: reportId,
+    meta: { by: context.user.email },
   });
 
   revalidatePath(`/organizer/events/${slug}`);

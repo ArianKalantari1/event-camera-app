@@ -2,12 +2,13 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { mediaAssets, eventSessions } from '@/lib/db/schema';
+import { mediaAssets, eventSessions, mediaReports } from '@/lib/db/schema';
 import { currentOrganizer, organizerFor } from '@/lib/organizer';
 import { eventState } from '@/lib/domain/event-state';
 import { formatDateRange } from '@/lib/format';
 import { absolute, paths } from '@/lib/routes';
 import { Queue, type QueueItem } from './queue';
+import { Reports, type ReportRow } from './reports';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,20 @@ export default async function EventConsole({ params }: Props) {
     contributor: r.session?.displayName ?? null,
     bytes: r.asset.bytes,
   });
+
+  const openReports = await db()
+    .select()
+    .from(mediaReports)
+    .where(and(eq(mediaReports.eventId, event.id), eq(mediaReports.state, 'open')))
+    .orderBy(desc(mediaReports.createdAt));
+
+  const reports: ReportRow[] = openReports.map((r) => ({
+    id: r.id,
+    mediaId: r.mediaId,
+    reason: r.reason,
+    detail: r.detail,
+    createdAt: r.createdAt.toISOString(),
+  }));
 
   const pending = rows.filter((r) => r.asset.state === 'pending').map(toItem);
   const approved = rows.filter((r) => r.asset.state === 'approved').map(toItem);
@@ -92,6 +107,8 @@ export default async function EventConsole({ params }: Props) {
           The event code is stored hashed and cannot be shown here. Rotate it if it leaks.
         </p>
       </section>
+
+      <Reports slug={slug} reports={reports} />
 
       <section className="stack" style={{ gap: 10 }}>
         <h2 style={{ margin: 0 }}>
