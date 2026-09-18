@@ -60,9 +60,60 @@ attendee actually opens. Untested; no sponsor has been asked. **[assumption]**
 
 ## 5. Why this and not the commodity
 
-The QR-code-to-photo-gallery space is saturated: Kululu, GuestPix, GuestCam,
-SelfBooth, and a long tail. Wedding-shaped, mature, cheap. **[measured — surveyed
-2026-09-03]**
+**Revised 2026-09-18 after a second survey. The market is worse than the first
+pass suggested, and the revision matters more than anything else in this file.**
+
+Named competitors found in one search pass: GuestPix, Wedibox, Picstash,
+JoinMyMoment, Easy Wedding Album, pix.wedding, Fotify, PixelParty, memoryKPR,
+Rompolo, QR PhotoShare, Eventer, Gather Shot, POV, Dearest Events, Cam-Shot,
+Eventiere. **[search-result summaries, not primary sources — the vendor sites are
+blocked from this environment; verify in a browser, ~10 minutes]**
+
+Two structural signals matter more than the count:
+
+- **Comparison-page SEO wars.** Wedibox, Picstash, JoinMyMoment and Easy Wedding
+  Album all run "X vs GuestPix" pages. Vendors only do that in a commoditised
+  market where the buyer is choosing on price and features, not on whether the
+  category should exist.
+- **The corporate/conference segment is already served, not adjacent.** GuestPix
+  advertises white-label branding for "organizations moving from casual gatherings
+  to full corporate conferences". Fotify sells $99–149/month team plans for running
+  multiple events. Gather Shot sells branded event pages with moderation at
+  $59.99–$99.99 per event. Dearest Events sells per-event pricing "suited for
+  corporate budgets".
+
+### The finding that breaks hypothesis 1
+
+**POV appears to sell exactly the sponsor-pays model this document proposed** —
+conference and trade-show galleries where every photo is branded "with your logo or
+a sponsor's", joined by QR or an iOS App Clip. That is not an adjacent product. It
+is the bridge in §3, already built and on sale.
+
+### The price anchor
+
+Per-event pricing across the category sits at roughly **$30–$180**, one-time, with
+free tiers (GuestPix: 50 photos for 30 days). GuestPix's own wedding tiers run
+$49 / $89 / $119, up to $177. **[snippets]**
+
+That is the market rate for *photo collection*. Any pricing built on "we collect
+your event's photos" has to fight that anchor, against vendors with years of SEO
+and paid acquisition. GuestPix is running Google Performance Max campaigns — they
+are buying customers, and we would be bidding against them.
+
+### What actually survives
+
+Nothing in that list does teams, projects, "what I'm building", or connecting the
+person in a photo to the person who took it. They are photo-collection tools with
+branding options bolted on.
+
+So the position is narrower and clearer than before:
+
+> The photo gallery is table stakes, commoditised at about $50–$100 an event. The
+> only defensible thing here is the hackathon workflow around it — and the only
+> real asset is Ari's access to those rooms.
+
+This makes the build-order problem urgent rather than theoretical. The part that is
+built is the commodity. The part that is deferred is the entire differentiator.
 
 So the gallery is not the product. What a wedding app structurally cannot copy is
 the **hackathon-shaped hub**: teams, projects, "what I'm building", and the
@@ -114,13 +165,18 @@ because the free tier is nearly free to serve.
 
 Ranked by how well they fit the cost structure above.
 
-1. **Free for community events, paid for branded ones.** Sponsor logo on exports,
-   a curated public recap, custom domain. Charge the sponsor or the company, never
-   the volunteer. ~$200–500 per event. **[assumption]**
-2. **Per-event flat fee for corporate/internal events.** Simple, defensible,
-   nobody has to think about attendee counts. ~$300–800. **[assumption]**
-3. **Free, as a portfolio and credibility asset.** A legitimate choice given Ari's
-   position. It is also what happens by default if nothing is decided.
+1. ~~**Free for community events, paid for branded ones**, ~$200–500 per event.~~
+   **Likely occupied.** POV appears to sell this to conferences already, and the
+   category anchor is $30–$180 rather than $200–500. Keeping it would mean
+   competing on price against incumbents, in their category, on their terms.
+   **[revised 2026-09-18]**
+2. **Per-event flat fee for corporate/internal hack days**, priced on the *workflow*
+   — team formation, project pages, demo capture, a recruiter-facing recap — not on
+   photo collection. Only defensible if the hub exists. ~$300–800. **[assumption]**
+3. **Free, as a portfolio and credibility asset.** Now the strongest short-term
+   option, not the fallback. It costs almost nothing to serve (§6), it buys the
+   access and references that are the real asset, and it avoids a price fight with
+   fifteen vendors over a feature that is not the point.
 
 **Not recommended:** per-attendee or per-photo pricing. It makes organizers ration
 the exact behaviour the product exists to produce, and the marginal cost that would
@@ -163,7 +219,8 @@ the networking layer asking to be built, and it is the moat.
 - Organizers publish and never return → the organizer loop is broken; the hub is
   not saving them work.
 - Nobody asks about people or teams → the hackathon differentiator is imagined,
-  and this is a commodity gallery competing with mature products on price.
+  and this is a commodity gallery competing with fifteen mature products on price,
+  which is not a business.
 - Luma ships an adequate gallery → the free tier's distribution advantage
   evaporates, and only the paid branded case survives.
 
@@ -172,8 +229,9 @@ the networking layer asking to be built, and it is the moat.
 | # | Decision | Blocked on |
 |---|---|---|
 | 1 | Free / paid / portfolio — what this is *for* | The coming events |
-| 2 | Whether to pursue the sponsor-pays model | One sponsor conversation |
+| 2 | ~~Whether to pursue the sponsor-pays model~~ — likely occupied by POV; verify | 10 minutes in a browser |
 | 3 | What Luma's photo feature actually covers | One hour |
+| 3b | Whether to build the hub before pricing anything | The coming events |
 | 4 | Whether to build the networking layer | Whether anyone asks at the events |
 | 5 | Domain and brand | Nothing — just unmade |
 | 6 | Deployment (Vercel + Neon + R2, ~20 min) | Needed before any real event |
