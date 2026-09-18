@@ -4,8 +4,9 @@ A private, no-install event doorway for community hackathons: attendees scan a Q
 code, enter an event code, and reach a hub with the event's information, resources
 and a moderated community photo gallery.
 
-Scope and rationale live in [`docs/mvp-prd.md`](docs/mvp-prd.md). Why we build rather
-than fork is in [`docs/reference-picpeak.md`](docs/reference-picpeak.md).
+Scope and rationale live in [`docs/mvp-prd.md`](docs/mvp-prd.md). Who pays, and what
+the first events have to prove, is in [`docs/business-model.md`](docs/business-model.md).
+Why we build rather than fork is in [`docs/reference-picpeak.md`](docs/reference-picpeak.md).
 
 ## Stack
 
